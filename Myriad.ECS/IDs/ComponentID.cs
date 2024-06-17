@@ -29,7 +29,8 @@ public readonly record struct ComponentID
     }
 }
 
-internal static class ComponentID<T>
+[NonPublic]
+public static class ComponentID<T>
     where T : IComponent
 {
     public static readonly ComponentID ID = ComponentRegistry.Get<T>();

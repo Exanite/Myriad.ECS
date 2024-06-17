@@ -195,7 +195,8 @@ public sealed partial class Archetype
         }
     }
 
-    internal IReadOnlyList<Chunk> Chunks => _chunks;
+    [NonPublic]
+    public IReadOnlyList<Chunk> Chunks => _chunks;
 
     //[MustDisposeResource]
     internal List<Chunk>.Enumerator GetChunkEnumerator()
