@@ -73,7 +73,8 @@ public sealed class Chunk
     //    return GetSpan<T>(ComponentID<T>.ID);
     //}
 
-    internal Span<T> GetSpan<T>(ComponentID id)
+    [NonPublic]
+    public Span<T> GetSpan<T>(ComponentID id)
         where T : IComponent
     {
         return GetComponentArray<T>(id).AsSpan(0, EntityCount);
