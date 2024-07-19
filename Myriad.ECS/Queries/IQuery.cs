@@ -1,6 +1,5 @@
 ﻿
 
-
 using System.Diagnostics;
 using System.Buffers;
 using Myriad.ECS.Queries;
