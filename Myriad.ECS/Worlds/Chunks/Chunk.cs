@@ -131,7 +131,7 @@ public sealed class Chunk
     {
         var index = info.RowIndex;
 
-        // No work to do if there are no other entites
+        // No work to do if there are no other entities
         EntityCount -= 1;
         if (EntityCount == 0)
         {
