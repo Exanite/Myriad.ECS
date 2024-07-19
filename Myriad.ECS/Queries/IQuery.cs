@@ -1,5 +1,6 @@
 ﻿
 
+
 using System.Diagnostics;
 using System.Buffers;
 using Myriad.ECS.Queries;
@@ -214,7 +215,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem1<TQ, T0>(
 							eMem,
@@ -536,7 +537,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem2<TQ, T0, T1>(
 							eMem,
@@ -879,7 +880,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem3<TQ, T0, T1, T2>(
 							eMem,
@@ -1243,7 +1244,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem4<TQ, T0, T1, T2, T3>(
 							eMem,
@@ -1628,7 +1629,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem5<TQ, T0, T1, T2, T3, T4>(
 							eMem,
@@ -2034,7 +2035,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem6<TQ, T0, T1, T2, T3, T4, T5>(
 							eMem,
@@ -2461,7 +2462,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem7<TQ, T0, T1, T2, T3, T4, T5, T6>(
 							eMem,
@@ -2909,7 +2910,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem8<TQ, T0, T1, T2, T3, T4, T5, T6, T7>(
 							eMem,
@@ -3378,7 +3379,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem9<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8>(
 							eMem,
@@ -3868,7 +3869,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem10<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(
 							eMem,
@@ -4379,7 +4380,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem11<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
 							eMem,
@@ -4911,7 +4912,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem12<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(
 							eMem,
@@ -5464,7 +5465,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem13<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(
 							eMem,
@@ -6038,7 +6039,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem14<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(
 							eMem,
@@ -6633,7 +6634,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem15<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(
 							eMem,
@@ -7249,7 +7250,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitesMemory(start, batchCount);
+						var eMem = chunk.GetEntitiesMemory(start, batchCount);
 
 						var item = new WorkItem16<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(
 							eMem,
