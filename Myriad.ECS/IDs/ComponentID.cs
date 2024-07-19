@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using Myriad.ECS.Registry;
 
 namespace Myriad.ECS.IDs;
 
@@ -26,6 +25,12 @@ public readonly record struct ComponentID
     public int CompareTo(ComponentID other)
     {
         return Value.CompareTo(other.Value);
+    }
+
+    public override string ToString()
+    {
+        var p = IsPhantomComponent ? " (phantom)" : "";
+        return $"C{Value}{p}";
     }
 }
 

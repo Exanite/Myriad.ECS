@@ -1,11 +1,15 @@
 ﻿using Myriad.ECS.Collections;
 using Myriad.ECS.IDs;
+using Myriad.ECS.Queries;
+using Myriad.ECS.Threading;
 using Myriad.ECS.Worlds.Archetypes;
 
 namespace Myriad.ECS.Worlds;
 
 public sealed partial class World
 {
+    internal IThreadPool ThreadPool { get; }
+
     private readonly List<Archetype> _archetypes = [ ];
     private readonly Dictionary<ArchetypeHash, List<Archetype>> _archetypesByHash = [ ];
 
@@ -18,9 +22,39 @@ public sealed partial class World
     public IReadOnlyList<Archetype> Archetypes => _archetypes;
     internal int ArchetypesCount => _archetypes.Count;
 
-    internal World()
+    internal World(IThreadPool pool)
     {
+        ThreadPool = pool;
     }
+
+    #region bulk write
+    /// <summary>
+    /// Overwrite the value of a specific component on every entity which matches the given query
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="item"></param>
+    /// <param name="query"></param>
+    /// <returns></returns>
+    public int Overwrite<T>(T item, QueryDescription? query = null)
+        where T : IComponent
+    {
+        return Overwrite(item, ref query);
+    }
+
+    /// <summary>
+    /// Overwrite the value of a specific component on every entity which matches the given query
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="item"></param>
+    /// <param name="query"></param>
+    /// <returns></returns>
+    public int Overwrite<T>(T item, ref QueryDescription? query)
+        where T : IComponent
+    {
+        query ??= GetCachedQuery<T>();
+        return query.Overwrite(item);
+    }
+    #endregion
 
     internal void DeleteImmediate(Entity delete)
     {

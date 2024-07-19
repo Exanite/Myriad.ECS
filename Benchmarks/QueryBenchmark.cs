@@ -1,18 +1,16 @@
 ﻿using System.Numerics;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Diagnosers;
 using Benchmarks.Components;
 using Myriad.ECS;
 using Myriad.ECS.Command;
 using Myriad.ECS.Queries;
 using Myriad.ECS.Worlds;
-using Myriad.ECS.Components;
 
 namespace Benchmarks;
 
 //[HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.BranchInstructions)]
-//[ThreadingDiagnoser]
-[MemoryDiagnoser]
+[ThreadingDiagnoser]
+//[MemoryDiagnoser]
 [ShortRunJob]
 public class QueryBenchmark
 {
@@ -62,12 +60,12 @@ public class QueryBenchmark
         }
     }
 
-    [Benchmark]
-    public void Query()
-    {
-        var q = new QueryAction();
-        _world.Execute<QueryAction, Position, Velocity>(ref q, _query);
-    }
+    //[Benchmark]
+    //public void Query()
+    //{
+    //    var q = new QueryAction();
+    //    _world.Execute<QueryAction, Position, Velocity>(ref q, _query);
+    //}
 
     //[Benchmark]
     //public void ChunkQuery()
@@ -81,17 +79,17 @@ public class QueryBenchmark
     //    _world.ExecuteVectorChunk<SimdChunkQueryAction2, Position, float, Velocity, float>(new SimdChunkQueryAction2(), _query);
     //}
 
-    //[Benchmark]
-    //public void ParallelQuery()
-    //{
-    //    _world.ExecuteParallel<QueryAction, Position, Velocity>(new QueryAction(), _query);
-    //}
+    [Benchmark]
+    public void ParallelQuery()
+    {
+        _world.ExecuteParallel<QueryAction, Position, Velocity>(new QueryAction(), _query);
+    }
 
-    ////[Benchmark]
-    //public void ParallelChunkQuery()
-    //{
-    //    _world.ExecuteChunkParallel<ChunkQueryAction, Position, Velocity>(new ChunkQueryAction(), _query);
-    //}
+    [Benchmark]
+    public void ParallelChunkQuery()
+    {
+        _world.ExecuteChunkParallel<ChunkQueryAction, Position, Velocity>(new ChunkQueryAction(), _query);
+    }
 
     //[Benchmark]
     //public void QueryEnumerable()
@@ -115,17 +113,26 @@ public class QueryBenchmark
         public readonly void Execute(Entity e, ref Position pos, ref Velocity vel)
         {
             pos.Value += vel.Value;
+            pos.Value += new Vector2(
+                (float)Math.Sqrt(Math.Abs(Math.Tanh(pos.Value.X))),
+                (float)Math.Tanh(pos.Value.Y)
+            );
         }
     }
 
     private struct ChunkQueryAction
         : IChunkQuery2<Position, Velocity>
     {
-        public readonly void Execute(ReadOnlySpan<Entity> e, Span<Position> pos, Span<Velocity> vel)
+        public readonly void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e, Span<Position> pos, Span<Velocity> vel)
         {
             for (var i = 0; i < pos.Length; i++)
             {
                 pos[i].Value += vel[i].Value;
+
+                pos[i].Value += new Vector2(
+                    (float)Math.Sqrt(Math.Abs(Math.Tanh(pos[i].Value.X))),
+                    (float)Math.Tanh(pos[i].Value.Y)
+                );
             }
         }
     }
@@ -137,6 +144,8 @@ public class QueryBenchmark
         {
             for (var i = 0; i < posf.Length; i++)
                 posf[i] += velf[i];
+
+            throw new NotImplementedException("implement extra complicated stuff");
         }
     }
 }

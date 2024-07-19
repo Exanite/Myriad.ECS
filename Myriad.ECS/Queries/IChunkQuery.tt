@@ -4,27 +4,32 @@
 <#@ import namespace="System.Text" #>
 <#@ import namespace="System.Collections.Generic" #>
 <#@ output extension=".cs" #>
+<#@ include file="TemplateHeaders/ParallelWorkLoopSetup.t4" #>
 <#
 	const int PARAM_COUNT = 16;
 #>
 using Myriad.ECS.Queries;
 using Myriad.ECS.IDs;
+using Myriad.ECS.Threading;
+using Myriad.ECS.Allocations;
+using System.Buffers;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedParameter.Global
 // ReSharper disable LoopCanBeConvertedToQuery
-#pragma warning disable CA1822 // Mark members as static
 
 <# for (var i = 1; i <= PARAM_COUNT; i++)
 {
 	var sumij = i;
+	var queryConstraints = string.Join(", ", Enumerable.Range(0, i).Select(x => "T" + x));
+	var workItemName = $"ChunkWorkItem{i}<TQ, {queryConstraints}>";
 #>
 namespace Myriad.ECS.Queries
 {
 	public interface <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>
-		where <#= Constraints(sumij, 8) #>
+		where <#= Constraints(i, 8) #>
 	{
-		public void Execute(ReadOnlySpan<Entity> e, <#= Refs(0, i) #>);
+		public void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e, <#= Refs(0, i) #>);
 	}
 }
 
@@ -39,18 +44,142 @@ namespace Myriad.ECS.Worlds
 <# for (var k = 0; k < sumij; k++)
 {
 #>
-        /// <typeparam name="T<#= k #>"></typeparam>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
 <#
 }
 #>
-        /// <param name="q">The TQ instance which will be executed for each chunk</param>
-        /// <param name="query">A query expressing which entities to execute this query over</param>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
+		/// query object will automatically be created and written into this field.</param>
+        /// <returns>The total number of entities processed</returns>
+		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
+			QueryDescription? query = null
+		)
+			where <#= Constraints(i, 12) #>
+			where TQ : <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>, new()
+		{
+			var q = new TQ();
+			return ExecuteChunk<TQ, <#= queryConstraints #>>(ref q, query);
+		}
+
+		/// <summary>
+        /// Execute a query which executes on entire chunks.
+        /// </summary>
+        /// <typeparam name="TQ">The type of the query</typeparam>
+<# for (var k = 0; k < sumij; k++)
+{
+#>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
+<#
+}
+#>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
+		/// query object will automatically be created and written into this field.</param>
+        /// <returns>The total number of entities processed</returns>
+		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
+			ref QueryDescription? query
+		)
+			where <#= Constraints(i, 12) #>
+			where TQ : <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>, new()
+		{
+			var q = new TQ();
+			return ExecuteChunk<TQ, <#= queryConstraints #>>(ref q, ref query);
+		}
+
+		/// <summary>
+        /// Execute a query which executes on entire chunks.
+        /// </summary>
+        /// <typeparam name="TQ">The type of the query</typeparam>
+<# for (var k = 0; k < sumij; k++)
+{
+#>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
+<#
+}
+#>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
+		/// query object will automatically be created and written into this field.</param>
+		/// <param name="q">The TQ instance which will be executed for each chunk</param>
         /// <returns>The total number of entities processed</returns>
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			TQ q,
 			QueryDescription? query = null
 		)
-			where <#= Constraints(sumij, 12) #>
+			where <#= Constraints(i, 12) #>
+			where TQ : <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>
+		{
+			return ExecuteChunk<TQ, <#= queryConstraints #>>(ref q, query);
+		}
+
+		/// <summary>
+        /// Execute a query which executes on entire chunks.
+        /// </summary>
+        /// <typeparam name="TQ">The type of the query</typeparam>
+<# for (var k = 0; k < sumij; k++)
+{
+#>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
+<#
+}
+#>
+        /// <param name="q">The TQ instance which will be executed for each chunk</param>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
+		/// query object will automatically be created and written into this field.</param>
+        /// <returns>The total number of entities processed</returns>
+		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
+			TQ q,
+			ref QueryDescription? query
+		)
+			where <#= Constraints(i, 12) #>
+			where TQ : <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>
+		{
+			return ExecuteChunk<TQ, <#= queryConstraints #>>(ref q, ref query);
+		}
+
+		/// <summary>
+        /// Execute a query which executes on entire chunks.
+        /// </summary>
+        /// <typeparam name="TQ">The type of the query</typeparam>
+<# for (var k = 0; k < sumij; k++)
+{
+#>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
+<#
+}
+#>
+        /// <param name="q">The TQ instance which will be executed for each chunk</param>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a default
+		/// query object will be used (based on type parameters).</param>
+        /// <returns>The total number of entities processed</returns>
+		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
+			ref TQ q,
+			QueryDescription? query = null
+		)
+			where <#= Constraints(i, 12) #>
+			where TQ : <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>
+		{
+			return ExecuteChunk<TQ, <#= queryConstraints #>>(ref q, ref query);
+		}
+
+		/// <summary>
+        /// Execute a query which executes on entire chunks.
+        /// </summary>
+        /// <typeparam name="TQ">The type of the query</typeparam>
+<# for (var k = 0; k < sumij; k++)
+{
+#>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
+<#
+}
+#>
+        /// <param name="q">The TQ instance which will be executed for each chunk</param>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
+		/// query object will automatically be created and written into this field.</param>
+        /// <returns>The total number of entities processed</returns>
+		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
+			ref TQ q,
+			ref QueryDescription? query
+		)
+			where <#= Constraints(i, 12) #>
 			where TQ : <#= Name(i) #><<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>
 		{
 			query ??= GetCachedQuery<<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>();
@@ -93,7 +222,7 @@ namespace Myriad.ECS.Worlds
 }
 #>
 
-					q.Execute(entities, <#= CallParameters(sumij) #>);
+					q.Execute(new ChunkHandle(chunk), entities, <#= CallParameters(sumij) #>);
 				}
 			}
 
@@ -113,12 +242,12 @@ namespace Myriad.ECS.Worlds
 			if (archetypes.Count == 0)
 				return 0;
 
-<# for (var k = 0; k < sumij; k++)
-{
-#>
-		    var c<#= k #> = ComponentID<T<#= k #>>.ID;
+			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
+			if (!query.Any())
+				return 0;
+
 <#
-}
+			EmitParallelWorkLoopSetup(workItemName);
 #>
 
 			var count = 0;
@@ -128,29 +257,57 @@ namespace Myriad.ECS.Worlds
 				if (archetype.EntityCount == 0)
 					continue;
 
-				Parallel.For(0, archetype.Chunks.Count, c =>
+				count += archetype.EntityCount;
+
+				// Inrement work counter for all of the chunk we're about to enqueue
+				workCounter.AddCount(archetype.Chunks.Count);
+
+				using var enumerator = archetype.GetChunkEnumerator();
+				while (enumerator.MoveNext())
 				{
-					var chunk = archetype.Chunks[c];
+					var chunk = enumerator.Current;
+					var item = new <#= workItemName #>(chunk, q);
 
-					var entities = chunk.Entities;
-					if (entities.Length == 0)
-						return;
+<#
+					EmitEnqueueParallelWork("item", false);
+#>
+				}
+			}
 
-					Interlocked.Add(ref count, entities.Length);
+<#
+			EmitParallelWorkLoopWaitAndTeardown(workItemName);
+#>
 
-<# for (var k = 0; k < sumij; k++)
+			return count;
+		}
+
+		private readonly struct ChunkWorkItem<#= i #><TQ, <#= queryConstraints #>>
+			: IWorkItem
+			where <#= Constraints(i, 12) #>
+			where TQ : <#= Name(i) #><<#= queryConstraints #>>
+		{
+			private readonly TQ _q;
+			private readonly Chunks.Chunk _chunk;
+
+			public ChunkWorkItem<#= i #>(Chunks.Chunk chunk, TQ q)
+			{
+				_chunk = chunk;
+				_q = q;
+			}
+
+			public void Execute()
+			{
+				_q.Execute(
+					new ChunkHandle(_chunk), _chunk.Entities
+<# for (var k = 0; k < i; k++)
 {
 #>
-					var t<#= k #> = chunk.GetSpan<T<#= k #>>(c<#= k #>);
+					, _chunk.GetSpan<T<#= k #>>()
 <#
 }
 #>
-
-					q.Execute(entities, <#= CallParameters(sumij) #>);
-				});
+				);
 			}
-
-			return count;
 		}
 	}
 }

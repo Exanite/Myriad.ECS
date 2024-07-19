@@ -1,7 +1,6 @@
 ﻿using Myriad.ECS.Collections;
 using Myriad.ECS.Components;
 using Myriad.ECS.IDs;
-using Myriad.ECS.Registry;
 using Myriad.ECS.Worlds.Chunks;
 
 namespace Myriad.ECS.Worlds.Archetypes;
@@ -195,6 +194,11 @@ public sealed partial class Archetype
         }
     }
 
+    public override int GetHashCode()
+    {
+        return Hash.GetHashCode();
+    }
+
     [NonPublic]
     public IReadOnlyList<Chunk> Chunks => _chunks;
 
@@ -208,4 +212,6 @@ public sealed partial class Archetype
     {
         return Components.SetEquals(query);
     }
+
+    public ArchetypeEntityEnumerable Entities => new ArchetypeEntityEnumerable(this);
 }

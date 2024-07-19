@@ -1,16 +1,14 @@
-﻿using BenchmarkDotNet.Running;
+﻿using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Toolchains.InProcess.NoEmit;
 using Benchmarks;
 
 //var e = new QueryBenchmark();
 //e.Setup();
-//e.Query();
+//e.ParallelQuery();
 
 var summary = BenchmarkRunner.Run<QueryBenchmark>();
 //var summary = BenchmarkRunner.Run<EntityCreateBenchmark>();
 //var summary = BenchmarkRunner.Run<EntityModifyBenchmark>();
 //var summary = BenchmarkRunner.Run<EntityChurnBenchmark>();
-
-//var b = new QueryBenchmark();
-//b.Setup();
-//for (var i = 0; i < 125; i++)
-//    b.QueryEnumerable();

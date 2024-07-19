@@ -67,11 +67,11 @@ public sealed class Chunk
         return ref GetSpan<T>(ComponentID<T>.ID)[rowIndex];
     }
 
-    //internal Span<T> GetSpan<T>()
-    //    where T : IComponent
-    //{
-    //    return GetSpan<T>(ComponentID<T>.ID);
-    //}
+    internal Span<T> GetSpan<T>()
+        where T : IComponent
+    {
+        return GetSpan<T>(ComponentID<T>.ID);
+    }
 
     [NonPublic]
     public Span<T> GetSpan<T>(ComponentID id)
@@ -205,4 +205,12 @@ public sealed class Chunk
         return destRow;
     }
 #endregion
+
+    public Memory<Entity> GetEntitesMemory(int start, int count)
+    {
+        if (start + count > EntityCount)
+            throw new ArgumentException("start + count is more than the number of entities", nameof(count));
+
+        return _entities.AsMemory(start, count);
+    }
 }
