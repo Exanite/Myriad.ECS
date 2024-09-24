@@ -67,6 +67,12 @@ public sealed class Chunk
         return ref GetSpan<T>(ComponentID<T>.ID)[rowIndex];
     }
 
+    internal ref T GetRef<T>(int rowIndex, ComponentID id)
+        where T : IComponent
+    {
+        return ref GetSpan<T>(id)[rowIndex];
+    }
+
     internal Span<T> GetSpan<T>()
         where T : IComponent
     {

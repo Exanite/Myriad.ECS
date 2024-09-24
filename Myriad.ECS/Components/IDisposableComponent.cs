@@ -1,54 +1,129 @@
-﻿using Myriad.ECS.Command;
-using Myriad.ECS.Queries;
-using Myriad.ECS.Systems;
-using Myriad.ECS.Worlds;
+﻿using System.Collections;
+using System.Reflection;
+using Myriad.ECS.Command;
+using Myriad.ECS.IDs;
+using Myriad.ECS.Worlds.Chunks;
 
 namespace Myriad.ECS.Components;
 
 /// <summary>
-/// Run the <see cref="DisposableComponentSystem{T,TC}"/> to automatically call <see cref="IDisposable.Dispose"/> on this component
+/// Automatically has Dispose() called when this component is destroyed. Either because the Entity
+/// was destroyed or because the component was removed from the Entity.
 /// </summary>
 public interface IDisposableComponent
-    : IPhantomComponent, IDisposable;
+    : IComponent
+{
+    /// <summary>
+    /// Dispose this component
+    /// </summary>
+    /// <param name="buffer">May be used to enqueue more work as a result of this disposal</param>
+    public void Dispose(ref LazyCommandBuffer buffer);
+}
+
+internal static class Disposer
+{
+    [ThreadStatic] private static Dictionary<ComponentID, IDisposer>? _disposerCache;
+
+    public static IDisposer Get(Type type)
+    {
+        var t = typeof(Disposer<>);
+        var tg = t.MakeGenericType(type);
+        var p = tg.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public)!;
+        var v = p.GetValue(null)!;
+
+        return (IDisposer)v;
+    }
+
+    public static IDisposer Get(ComponentID id)
+    {
+        _disposerCache ??= [ ];
+
+        if (!_disposerCache.TryGetValue(id, out var value))
+        {
+            value = Get(id.Type);
+            _disposerCache[id] = value;
+        }
+
+        return value;
+    }
+}
 
 /// <summary>
-/// Calls Dispose on disposable component and then removes it from the entity after the entity is dead
+/// Provides a generic way to dispose _any_ component. Does nothing for non-disposable components.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-/// <typeparam name="TC"></typeparam>
-/// <param name="world"></param>
-public sealed class DisposableComponentSystem<T, TC>(World world, CommandBuffer buffer)
-    : BaseSystem<T>, IDisposable
-    where TC : IDisposableComponent
+internal static class Disposer<T>
+    where T : IComponent
 {
-    private readonly QueryDescription _query = new QueryBuilder().Include<Phantom>().Include<TC>().Build(world);
+    public static IDisposer Instance { get; } = GetInstance();
 
-    public override void Update(T t)
+    private static IDisposer GetInstance()
     {
-        world.Execute<DisposalQuery, TC>(new DisposalQuery(buffer), _query);
+        var id = ComponentID<T>.ID;
+
+        if (!id.IsDisposableComponent)
+            return new EmptyImpl();
+
+        return (IDisposer)Activator.CreateInstance(typeof(DisposerImpl<>).MakeGenericType(typeof(T), typeof(T)))!;
     }
 
-    public void Dispose()
+    private class DisposerImpl<U>
+        : IDisposer
+        where U : IDisposableComponent
     {
-        var cmd = new CommandBuffer(world);
+        public ComponentID Component { get; } = ComponentID<U>.ID;
 
-        // Execute once with the query, disposing on phantoms
-        world.Execute<DisposalQuery, TC>(new DisposalQuery(cmd), _query);
+        //public void Dispose(Array array, int index, ref LazyCommandBuffer buffer)
+        //{
+        //    var arr = (U[])array;
+        //    arr[index].Dispose(ref buffer);
+        //}
 
-        // Execute again without the query, disposing even on live entities
-        world.Execute<DisposalQuery, TC>(new DisposalQuery(cmd));
-
-        // Ensure the buffer runs
-        cmd.Playback().Dispose();
-    }
-
-    private readonly struct DisposalQuery(CommandBuffer cmd)
-        : IQuery1<TC>
-    {
-        public void Execute(Entity e, ref TC disposable)
+        public void Dispose(IList list, int index, ref LazyCommandBuffer buffer)
         {
-            disposable.Dispose();
-            cmd.Remove<TC>(e);
+            var arr = (List<U>)list;
+            arr[index].Dispose(ref buffer);
+        }
+
+        public void Dispose(Chunk chunk, int rowIndex, ref LazyCommandBuffer buffer)
+        {
+            chunk.GetRef<U>(rowIndex).Dispose(ref buffer);
+        }
+
+        public void DisposeAll(IList list, ref LazyCommandBuffer buffer)
+        {
+            var arr = (List<U>)list;
+            foreach (var component in arr)
+                component.Dispose(ref buffer);
         }
     }
+
+    private class EmptyImpl
+        : IDisposer
+    {
+        public ComponentID Component { get; } = ComponentID<T>.ID;
+
+        public void Dispose(IList list, int index, ref LazyCommandBuffer buffer)
+        {
+        }
+
+        public void Dispose(Chunk chunk, int rowIndex, ref LazyCommandBuffer buffer)
+        {
+        }
+
+        public void DisposeAll(IList list, ref LazyCommandBuffer buffer)
+        {
+        }
+    }
+}
+
+internal interface IDisposer
+{
+    public ComponentID Component { get; }
+
+    void Dispose(IList list, int index, ref LazyCommandBuffer buffer);
+
+    void Dispose(Chunk chunk, int rowIndex, ref LazyCommandBuffer buffer);
+
+    void DisposeAll(IList list, ref LazyCommandBuffer buffer);
 }

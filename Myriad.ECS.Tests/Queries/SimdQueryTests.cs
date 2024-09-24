@@ -3,7 +3,7 @@ using Myriad.ECS.Command;
 using Myriad.ECS.Queries;
 using Myriad.ECS.Worlds;
 
-namespace Myriad.ECS.Tests;
+namespace Myriad.ECS.Tests.Queries;
 
 [TestClass]
 public class SimdQueryTests
@@ -27,7 +27,7 @@ public class SimdQueryTests
     }
 
     private struct AddInts
-        : IVectorChunkQuery1<int>
+        : IVectorChunkQuery<int>
     {
         public readonly void Execute(Span<Vector<int>> t0, int off, int pad)
         {

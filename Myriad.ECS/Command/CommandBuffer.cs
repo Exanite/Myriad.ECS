@@ -10,9 +10,11 @@ using Myriad.ECS.Worlds.Archetypes;
 
 namespace Myriad.ECS.Command;
 
-public sealed partial class CommandBuffer(World World)
+public sealed partial class CommandBuffer
 {
     private uint _version;
+
+    public World World { get; }
 
     /// <summary>
     /// Collection of all components to be set onto entities
@@ -35,22 +37,44 @@ public sealed partial class CommandBuffer(World World)
 
     private readonly OrderedListSet<ComponentID> _tempComponentIdSet = new();
 
+    private readonly BufferedRelationBinder _bufferedRelationBindings = new();
+    private readonly UnbufferedRelationBinder _unbufferedRelationBindings = new();
+
+    private Resolver _nextResolver;
+
+    public CommandBuffer(World world)
+    {
+        World = world;
+
+        _nextResolver = Pool<Resolver>.Get();
+        _nextResolver.Configure(this);
+    }
+
     #region playback
+    /// <summary>
+    /// Apply all of the operations in this buffer to the <see cref="World"/>
+    /// </summary>
+    /// <returns></returns>
     public Resolver Playback()
     {
-        // Create a "resolver" that can be used to resolve entity IDs
-        var resolver = Pool<Resolver>.Get();
-        resolver.Configure(this);
+        // Use this resolver for this playback
+        var resolver = _nextResolver;
 
         // Create buffered entities.
         CreateBufferedEntities(resolver);
 
+        // Lazy command buffer accumulates any changes caused by applying this command buffer
+        var lazy = new LazyCommandBuffer(World);
+        
         // Delete entities, this must occur before structural changes because it may trigger new structural changes
         // by adding a new phantom component.
-        DeleteEntities();
+        DeleteEntities(ref lazy);
 
         // Structural changes (add/remove components)
-        ApplyStructuralChanges();
+        ApplyStructuralChanges(ref lazy);
+
+        // Dispose all disposable components which were enqueued but were never attached to an Entity
+        _setters.DisposeAllOverwritten(ref lazy);
 
         // Clear all temporary state
         _maybeAddingPhantomComponent.Clear();
@@ -62,14 +86,36 @@ public sealed partial class CommandBuffer(World World)
         // Update the version of this buffer, invalidating all buffered entities for further modification
         unchecked { _version++; }
 
+        // Apply all late-bound relationships (this requires using the resolver, so must be done after the version bump)
+        _bufferedRelationBindings.Apply(resolver);
+        _bufferedRelationBindings.Clear();
+        _unbufferedRelationBindings.Apply(resolver);
+        _unbufferedRelationBindings.Clear();
+
+        // Apply any changes caused by these changes
+        if (lazy.TryGetBuffer(out var lazyBuffer))
+        {
+            lazyBuffer.Playback().Dispose();
+            World.ReturnPooledCommandBuffer(lazyBuffer);
+        }
+
+        // Create a resolver ready to use in the future
+        _nextResolver = Pool<Resolver>.Get();
+        _nextResolver.Configure(this);
+
         // Return the resolver
         return resolver;
     }
 
-    private void DeleteEntities()
+    private void DeleteEntities(ref LazyCommandBuffer lazy)
     {
         foreach (var delete in _deletes)
         {
+            // If there are any modifications enqueue for this entity, delete them
+            if (_entityModifications.TryGetValue(delete, out var mods))
+                _setters.Dispose(mods.Sets, ref lazy);
+
+            // Skip deleted entities
             if (!delete.Exists(World))
                 continue;
 
@@ -81,8 +127,9 @@ public sealed partial class CommandBuffer(World World)
             }
             else
             {
-                World.DeleteImmediate(delete);
+                World.DeleteImmediate(delete, ref lazy);
 
+                // Return objects to pools
                 if (_entityModifications.Remove(delete, out var mod))
                 {
                     if (mod.Sets != null)
@@ -114,13 +161,20 @@ public sealed partial class CommandBuffer(World World)
         }
     }
 
-    private void ApplyStructuralChanges()
+    private void ApplyStructuralChanges(ref LazyCommandBuffer lazy)
     {
         if (_entityModifications.Count > 0)
         {
             // Calculate the new archetype for the entity
             foreach (var (entity, mod) in _entityModifications.Enumerable())
             {
+                // Skip entities that have been deleted since this was enqueued
+                if (!entity.Exists(World))
+                {
+                    _setters.Dispose(mod.Sets, ref lazy);
+                    continue;
+                }
+
                 var currentArchetype = World.GetArchetype(entity);
 
                 // Set all of the current archetype components
@@ -161,7 +215,7 @@ public sealed partial class CommandBuffer(World World)
                 var autodelete = currentArchetype.IsPhantom && !_tempComponentIdSet.Any(static a => a.IsPhantomComponent);
                 if (autodelete)
                 {
-                    World.DeleteImmediate(entity);
+                    World.DeleteImmediate(entity, ref lazy);
                 }
                 else
                 {
@@ -173,7 +227,7 @@ public sealed partial class CommandBuffer(World World)
                         var newArchetype = World.GetOrCreateArchetype(_tempComponentIdSet, hash);
 
                         // Migrate the entity across
-                        row = World.MigrateEntity(entity, newArchetype);
+                        row = World.MigrateEntity(entity, newArchetype, ref lazy);
                     }
                     else
                     {
@@ -280,7 +334,7 @@ public sealed partial class CommandBuffer(World World)
         var id = (uint)_bufferedSets.Count;
         _bufferedSets.Add(new BufferedEntityData(id, set));
         
-        return new BufferedEntity(id, this);
+        return new BufferedEntity(id, this, _nextResolver);
     }
 
     private void SetBuffered<T>(uint id, T value, bool allowDuplicates = false)
@@ -322,6 +376,16 @@ public sealed partial class CommandBuffer(World World)
         }
     }
 
+    private void SetBuffered<T>(uint id, T value, BufferedEntity relation, bool allowDuplicates = false)
+        where T : IEntityRelationComponent
+    {
+        if (relation._buffer != this)
+            throw new ArgumentException("Target of relation must be BufferedEntity from the same CommandBuffer", nameof(relation));
+
+        SetBuffered(id, value, allowDuplicates);
+        _bufferedRelationBindings.Create<T>(new BufferedEntity(id, this, _nextResolver), relation);
+    }
+
     /// <summary>
     /// Add or overwrite a component attached to an entity
     /// </summary>
@@ -334,6 +398,33 @@ public sealed partial class CommandBuffer(World World)
         if (typeof(T) == typeof(Phantom))
             throw new InvalidOperationException("Cannot manually attach `Phantom` component to an entity");
 
+        InternalSet(entity, value);
+    }
+
+    /// <summary>
+    /// Add or overwrite a component attached to an entity
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="entity"></param>
+    /// <param name="value"></param>
+    /// <param name="relation">When this buffer is played back the given buffered entity will be set into the component</param>
+    public void Set<T>(Entity entity, T value, BufferedEntity relation)
+        where T : IEntityRelationComponent
+    {
+        InternalSet(entity, value, relation);
+    }
+
+    /// <summary>
+    /// Add or overwrite a component attached to an entity
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="entity"></param>
+    /// <param name="value"></param>
+    /// <param name="relation"></param>
+    public void Set<T>(Entity entity, T value, Entity relation)
+        where T : IEntityRelationComponent
+    {
+        value.Target = relation;
         InternalSet(entity, value);
     }
 
@@ -360,6 +451,16 @@ public sealed partial class CommandBuffer(World World)
 
         // Remove it from the "remove" set. In case it was previously removed
         mod.Removes?.Remove(id);
+    }
+
+    private void InternalSet<T>(Entity entity, T value, BufferedEntity relation)
+        where T : IEntityRelationComponent
+    {
+        if (relation._buffer != this)
+            throw new ArgumentException("Target of relation must be BufferedEntity from the same CommandBuffer", nameof(relation));
+
+        InternalSet(entity, value);
+        _unbufferedRelationBindings.Create<T>(entity, relation);
     }
 
     /// <summary>

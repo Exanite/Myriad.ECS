@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Myriad.ECS.Command;
 using Myriad.ECS.Components;
 
 namespace Myriad.ECS.Tests;
@@ -34,12 +35,16 @@ public record struct TestPhantom0 : IPhantomComponent;
 public record struct TestPhantom1 : IPhantomComponent;
 public record struct TestPhantom2 : IPhantomComponent;
 
+public record struct Relational1(Entity Target) : IEntityRelationComponent;
+public record struct Relational2(Entity Target, int x) : IEntityRelationComponent;
+public record struct Relational3(Entity Target, float y) : IEntityRelationComponent;
+
 public class BoxedInt
 {
     public int Value;
 }
 
-public record struct TestDisposable
+public readonly record struct TestDisposable
     : IDisposableComponent
 {
     private readonly BoxedInt _box;
@@ -49,7 +54,34 @@ public record struct TestDisposable
         _box = box;
     }
 
-    public void Dispose()
+    public void Dispose(ref LazyCommandBuffer lazy)
+    {
+        _box.Value++;
+    }
+}
+
+public record struct TestDisposableParent
+    : IDisposableComponent, IEntityRelationComponent
+{
+    public Entity Target { get; set; }
+
+    public void Dispose(ref LazyCommandBuffer lazy)
+    {
+        lazy.CommandBuffer.Delete(Target);
+    }
+}
+
+public readonly record struct TestDisposablePhantom
+    : IDisposableComponent, IPhantomComponent
+{
+    private readonly BoxedInt _box;
+
+    public TestDisposablePhantom(BoxedInt box)
+    {
+        _box = box;
+    }
+
+    public void Dispose(ref LazyCommandBuffer laz)
     {
         _box.Value++;
     }

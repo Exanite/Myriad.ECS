@@ -1,4 +1,6 @@
-﻿using Myriad.ECS.Collections;
+﻿using System.Collections.Concurrent;
+using Myriad.ECS.Collections;
+using Myriad.ECS.Command;
 using Myriad.ECS.IDs;
 using Myriad.ECS.Queries;
 using Myriad.ECS.Threading;
@@ -7,6 +9,7 @@ using Myriad.ECS.Worlds.Archetypes;
 namespace Myriad.ECS.Worlds;
 
 public sealed partial class World
+    : IDisposable
 {
     internal IThreadPool ThreadPool { get; }
 
@@ -22,9 +25,35 @@ public sealed partial class World
     public IReadOnlyList<Archetype> Archetypes => _archetypes;
     internal int ArchetypesCount => _archetypes.Count;
 
+    private readonly ConcurrentBag<CommandBuffer> _commandBufferPool = [ ];
+
     internal World(IThreadPool pool)
     {
         ThreadPool = pool;
+    }
+
+    public void Dispose()
+    {
+        var lazy = new LazyCommandBuffer(this);
+
+        foreach (var archetype in _archetypes)
+            archetype.Dispose(ref lazy);
+
+        if (lazy.TryGetBuffer(out var buffer))
+            buffer.Playback().Dispose();
+    }
+
+    internal CommandBuffer GetPooledCommandBuffer()
+    {
+        if (!_commandBufferPool.TryTake(out var buffer))
+            buffer = new CommandBuffer(this);
+        return buffer;
+    }
+
+    internal void ReturnPooledCommandBuffer(CommandBuffer buffer)
+    {
+        if (_commandBufferPool.Count < 32)
+            _commandBufferPool.Add(buffer);
     }
 
     #region bulk write
@@ -56,7 +85,7 @@ public sealed partial class World
     }
     #endregion
 
-    internal void DeleteImmediate(Entity delete)
+    internal void DeleteImmediate(Entity delete, ref LazyCommandBuffer lazy)
     {
         // Get the entityinfo for this entity
         ref var entityInfo = ref _entities[delete.ID];
@@ -70,7 +99,7 @@ public sealed partial class World
         entityInfo.Version++;
 
         // Notify archetype this entity is dead
-        entityInfo.Chunk.Archetype.RemoveEntity(entityInfo);
+        entityInfo.Chunk.Archetype.RemoveEntity(entityInfo, ref lazy);
 
         // Store this ID for re-use later
         _deadEntities.Add(delete);
@@ -134,10 +163,10 @@ public sealed partial class World
         return GetOrCreateArchetype(components, hash);
     }
 
-    internal Row MigrateEntity(Entity entity, Archetype to)
+    internal Row MigrateEntity(Entity entity, Archetype to, ref LazyCommandBuffer lazy)
     {
         ref var info = ref GetEntityInfo(entity);
-        return info.Chunk.Archetype.MigrateTo(entity, ref info, to);
+        return info.Chunk.Archetype.MigrateTo(entity, ref info, to, ref lazy);
     }
 
     internal ref EntityInfo AllocateEntity(out Entity entity)

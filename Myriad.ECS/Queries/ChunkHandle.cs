@@ -1,5 +1,5 @@
-﻿using Myriad.ECS.Components;
-using Myriad.ECS.IDs;
+﻿using Myriad.ECS.IDs;
+using Myriad.ECS.Worlds.Archetypes;
 using Myriad.ECS.Worlds.Chunks;
 
 namespace Myriad.ECS.Queries;
@@ -12,19 +12,19 @@ public readonly ref struct ChunkHandle
     private readonly Chunk _chunk;
 
     /// <summary>
+    /// The archetype this chunk belongs to
+    /// </summary>
+    public Archetype Archetype => _chunk.Archetype;
+
+    /// <summary>
     /// Get the total number of entities in this chunk
     /// </summary>
     public int EntityCount => _chunk.EntityCount;
 
     /// <summary>
-    /// Indicates if any of the components in this Archetype implement <see cref="IPhantomComponent"/>;
+    /// Get the entities in this chunk
     /// </summary>
-    public bool HasPhantomComponents => _chunk.Archetype.HasPhantomComponents;
-
-    /// <summary>
-    /// Indicates if any of the components in this Archetype is <see cref="Phantom"/>
-    /// </summary>
-    public bool IsPhantom => _chunk.Archetype.IsPhantom;
+    public ReadOnlySpan<Entity> Entities => _chunk.Entities;
 
     internal ChunkHandle(Chunk chunk)
     {

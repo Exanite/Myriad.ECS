@@ -56,6 +56,11 @@ public class SystemGroupItem<TData>
     private readonly Stopwatch _timer = new();
 
     /// <summary>
+    /// Indicates if this system has a BeforeUpdate phase
+    /// </summary>
+    public bool HasBeforeUpdate => SystemBefore != null;
+
+    /// <summary>
     /// Time elapsed in last BeforeUpdate phase
     /// </summary>
     public TimeSpan BeforeUpdateTime { get; private set; }
@@ -64,6 +69,11 @@ public class SystemGroupItem<TData>
     /// Time elapsed in last Update phase
     /// </summary>
     public TimeSpan UpdateTime { get; private set; }
+
+    /// <summary>
+    /// Indicates if this system has a AfterUpdate phase
+    /// </summary>
+    public bool HasAfterUpdate => SystemBefore != null;
 
     /// <summary>
     /// Time elapsed in last AfterUpdate phase
@@ -154,6 +164,22 @@ public abstract class BaseSystemGroup<TData>
             _afterSystems.Add(item);
 
         return item;
+    }
+
+    protected bool Remove(ISystem<TData> system)
+    {
+        for (var i = 0; i < _systems.Count; i++)
+        {
+            if (_systems[i].System == system)
+            {
+                _beforeSystems.Remove(_systems[i]);
+                _afterSystems.Remove(_systems[i]);
+                _systems.RemoveAt(i);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void BeforeUpdate(TData data)

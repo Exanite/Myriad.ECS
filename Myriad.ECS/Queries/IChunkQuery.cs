@@ -12,7 +12,7 @@ using System.Buffers;
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery1<T0>
+	public interface IChunkQuery<T0>
 		where T0 : IComponent
 	{
 		public void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e, Span<T0> t0);
@@ -35,7 +35,7 @@ namespace Myriad.ECS.Worlds
 			QueryDescription? query = null
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>, new()
+			where TQ : IChunkQuery<T0>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0>(ref q, query);
@@ -53,7 +53,7 @@ namespace Myriad.ECS.Worlds
 			ref QueryDescription? query
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>, new()
+			where TQ : IChunkQuery<T0>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0>(ref q, ref query);
@@ -73,7 +73,7 @@ namespace Myriad.ECS.Worlds
 			QueryDescription? query = null
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>
+			where TQ : IChunkQuery<T0>
 		{
 			return ExecuteChunk<TQ, T0>(ref q, query);
 		}
@@ -92,7 +92,7 @@ namespace Myriad.ECS.Worlds
 			ref QueryDescription? query
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>
+			where TQ : IChunkQuery<T0>
 		{
 			return ExecuteChunk<TQ, T0>(ref q, ref query);
 		}
@@ -111,7 +111,7 @@ namespace Myriad.ECS.Worlds
 			QueryDescription? query = null
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>
+			where TQ : IChunkQuery<T0>
 		{
 			return ExecuteChunk<TQ, T0>(ref q, ref query);
 		}
@@ -130,7 +130,7 @@ namespace Myriad.ECS.Worlds
 			ref QueryDescription? query
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>
+			where TQ : IChunkQuery<T0>
 		{
 			query ??= GetCachedQuery<T0>();
 
@@ -172,16 +172,14 @@ namespace Myriad.ECS.Worlds
 			QueryDescription? query = null
 		)
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>
+			where TQ : IChunkQuery<T0>
 		{
 			query ??= GetCachedQuery<T0>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -295,7 +293,7 @@ namespace Myriad.ECS.Worlds
 		private readonly struct ChunkWorkItem1<TQ, T0>
 			: IWorkItem
 			where T0 : IComponent
-			where TQ : IChunkQuery1<T0>
+			where TQ : IChunkQuery<T0>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -319,7 +317,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery2<T0, T1>
+	public interface IChunkQuery<T0, T1>
 		where T0 : IComponent
         where T1 : IComponent
 	{
@@ -345,7 +343,7 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>, new()
+			where TQ : IChunkQuery<T0, T1>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1>(ref q, query);
@@ -365,7 +363,7 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>, new()
+			where TQ : IChunkQuery<T0, T1>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1>(ref q, ref query);
@@ -387,7 +385,7 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>
+			where TQ : IChunkQuery<T0, T1>
 		{
 			return ExecuteChunk<TQ, T0, T1>(ref q, query);
 		}
@@ -408,7 +406,7 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>
+			where TQ : IChunkQuery<T0, T1>
 		{
 			return ExecuteChunk<TQ, T0, T1>(ref q, ref query);
 		}
@@ -429,7 +427,7 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>
+			where TQ : IChunkQuery<T0, T1>
 		{
 			return ExecuteChunk<TQ, T0, T1>(ref q, ref query);
 		}
@@ -450,7 +448,7 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>
+			where TQ : IChunkQuery<T0, T1>
 		{
 			query ??= GetCachedQuery<T0, T1>();
 
@@ -495,16 +493,14 @@ namespace Myriad.ECS.Worlds
 		)
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>
+			where TQ : IChunkQuery<T0, T1>
 		{
 			query ??= GetCachedQuery<T0, T1>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -619,7 +615,7 @@ namespace Myriad.ECS.Worlds
 			: IWorkItem
 			where T0 : IComponent
             where T1 : IComponent
-			where TQ : IChunkQuery2<T0, T1>
+			where TQ : IChunkQuery<T0, T1>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -644,7 +640,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery3<T0, T1, T2>
+	public interface IChunkQuery<T0, T1, T2>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -673,7 +669,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>, new()
+			where TQ : IChunkQuery<T0, T1, T2>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2>(ref q, query);
@@ -695,7 +691,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>, new()
+			where TQ : IChunkQuery<T0, T1, T2>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2>(ref q, ref query);
@@ -719,7 +715,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>
+			where TQ : IChunkQuery<T0, T1, T2>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2>(ref q, query);
 		}
@@ -742,7 +738,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>
+			where TQ : IChunkQuery<T0, T1, T2>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2>(ref q, ref query);
 		}
@@ -765,7 +761,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>
+			where TQ : IChunkQuery<T0, T1, T2>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2>(ref q, ref query);
 		}
@@ -788,7 +784,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>
+			where TQ : IChunkQuery<T0, T1, T2>
 		{
 			query ??= GetCachedQuery<T0, T1, T2>();
 
@@ -836,16 +832,14 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>
+			where TQ : IChunkQuery<T0, T1, T2>
 		{
 			query ??= GetCachedQuery<T0, T1, T2>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -961,7 +955,7 @@ namespace Myriad.ECS.Worlds
 			where T0 : IComponent
             where T1 : IComponent
             where T2 : IComponent
-			where TQ : IChunkQuery3<T0, T1, T2>
+			where TQ : IChunkQuery<T0, T1, T2>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -987,7 +981,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery4<T0, T1, T2, T3>
+	public interface IChunkQuery<T0, T1, T2, T3>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -1019,7 +1013,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3>(ref q, query);
@@ -1043,7 +1037,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3>(ref q, ref query);
@@ -1069,7 +1063,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>
+			where TQ : IChunkQuery<T0, T1, T2, T3>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3>(ref q, query);
 		}
@@ -1094,7 +1088,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>
+			where TQ : IChunkQuery<T0, T1, T2, T3>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3>(ref q, ref query);
 		}
@@ -1119,7 +1113,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>
+			where TQ : IChunkQuery<T0, T1, T2, T3>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3>(ref q, ref query);
 		}
@@ -1144,7 +1138,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>
+			where TQ : IChunkQuery<T0, T1, T2, T3>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3>();
 
@@ -1195,16 +1189,14 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>
+			where TQ : IChunkQuery<T0, T1, T2, T3>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -1321,7 +1313,7 @@ namespace Myriad.ECS.Worlds
             where T1 : IComponent
             where T2 : IComponent
             where T3 : IComponent
-			where TQ : IChunkQuery4<T0, T1, T2, T3>
+			where TQ : IChunkQuery<T0, T1, T2, T3>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -1348,7 +1340,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery5<T0, T1, T2, T3, T4>
+	public interface IChunkQuery<T0, T1, T2, T3, T4>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -1383,7 +1375,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4>(ref q, query);
@@ -1409,7 +1401,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4>(ref q, ref query);
@@ -1437,7 +1429,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4>(ref q, query);
 		}
@@ -1464,7 +1456,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4>(ref q, ref query);
 		}
@@ -1491,7 +1483,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4>(ref q, ref query);
 		}
@@ -1518,7 +1510,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4>();
 
@@ -1572,16 +1564,14 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -1699,7 +1689,7 @@ namespace Myriad.ECS.Worlds
             where T2 : IComponent
             where T3 : IComponent
             where T4 : IComponent
-			where TQ : IChunkQuery5<T0, T1, T2, T3, T4>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -1727,7 +1717,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery6<T0, T1, T2, T3, T4, T5>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -1765,7 +1755,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5>(ref q, query);
@@ -1793,7 +1783,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5>(ref q, ref query);
@@ -1823,7 +1813,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5>(ref q, query);
 		}
@@ -1852,7 +1842,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5>(ref q, ref query);
 		}
@@ -1881,7 +1871,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5>(ref q, ref query);
 		}
@@ -1910,7 +1900,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5>();
 
@@ -1967,16 +1957,14 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -2095,7 +2083,7 @@ namespace Myriad.ECS.Worlds
             where T3 : IComponent
             where T4 : IComponent
             where T5 : IComponent
-			where TQ : IChunkQuery6<T0, T1, T2, T3, T4, T5>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -2124,7 +2112,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -2165,7 +2153,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6>(ref q, query);
@@ -2195,7 +2183,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6>(ref q, ref query);
@@ -2227,7 +2215,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6>(ref q, query);
 		}
@@ -2258,7 +2246,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6>(ref q, ref query);
 		}
@@ -2289,7 +2277,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6>(ref q, ref query);
 		}
@@ -2320,7 +2308,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6>();
 
@@ -2380,16 +2368,14 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -2509,7 +2495,7 @@ namespace Myriad.ECS.Worlds
             where T4 : IComponent
             where T5 : IComponent
             where T6 : IComponent
-			where TQ : IChunkQuery7<T0, T1, T2, T3, T4, T5, T6>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -2539,7 +2525,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -2583,7 +2569,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7>(ref q, query);
@@ -2615,7 +2601,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7>(ref q, ref query);
@@ -2649,7 +2635,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7>(ref q, query);
 		}
@@ -2682,7 +2668,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7>(ref q, ref query);
 		}
@@ -2715,7 +2701,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7>(ref q, ref query);
 		}
@@ -2748,7 +2734,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7>();
 
@@ -2811,16 +2797,14 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -2941,7 +2925,7 @@ namespace Myriad.ECS.Worlds
             where T5 : IComponent
             where T6 : IComponent
             where T7 : IComponent
-			where TQ : IChunkQuery8<T0, T1, T2, T3, T4, T5, T6, T7>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -2972,7 +2956,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -3019,7 +3003,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8>(ref q, query);
@@ -3053,7 +3037,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8>(ref q, ref query);
@@ -3089,7 +3073,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8>(ref q, query);
 		}
@@ -3124,7 +3108,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8>(ref q, ref query);
 		}
@@ -3159,7 +3143,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8>(ref q, ref query);
 		}
@@ -3194,7 +3178,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>();
 
@@ -3260,16 +3244,14 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -3391,7 +3373,7 @@ namespace Myriad.ECS.Worlds
             where T6 : IComponent
             where T7 : IComponent
             where T8 : IComponent
-			where TQ : IChunkQuery9<T0, T1, T2, T3, T4, T5, T6, T7, T8>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -3423,7 +3405,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -3473,7 +3455,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(ref q, query);
@@ -3509,7 +3491,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(ref q, ref query);
@@ -3547,7 +3529,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(ref q, query);
 		}
@@ -3584,7 +3566,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(ref q, ref query);
 		}
@@ -3621,7 +3603,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(ref q, ref query);
 		}
@@ -3658,7 +3640,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>();
 
@@ -3727,16 +3709,14 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -3859,7 +3839,7 @@ namespace Myriad.ECS.Worlds
             where T7 : IComponent
             where T8 : IComponent
             where T9 : IComponent
-			where TQ : IChunkQuery10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -3892,7 +3872,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -3945,7 +3925,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(ref q, query);
@@ -3983,7 +3963,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(ref q, ref query);
@@ -4023,7 +4003,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(ref q, query);
 		}
@@ -4062,7 +4042,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(ref q, ref query);
 		}
@@ -4101,7 +4081,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(ref q, ref query);
 		}
@@ -4140,7 +4120,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>();
 
@@ -4212,16 +4192,14 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -4345,7 +4323,7 @@ namespace Myriad.ECS.Worlds
             where T8 : IComponent
             where T9 : IComponent
             where T10 : IComponent
-			where TQ : IChunkQuery11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -4379,7 +4357,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -4435,7 +4413,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(ref q, query);
@@ -4475,7 +4453,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(ref q, ref query);
@@ -4517,7 +4495,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(ref q, query);
 		}
@@ -4558,7 +4536,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(ref q, ref query);
 		}
@@ -4599,7 +4577,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(ref q, ref query);
 		}
@@ -4640,7 +4618,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>();
 
@@ -4715,16 +4693,14 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -4849,7 +4825,7 @@ namespace Myriad.ECS.Worlds
             where T9 : IComponent
             where T10 : IComponent
             where T11 : IComponent
-			where TQ : IChunkQuery12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -4884,7 +4860,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -4943,7 +4919,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(ref q, query);
@@ -4985,7 +4961,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(ref q, ref query);
@@ -5029,7 +5005,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(ref q, query);
 		}
@@ -5072,7 +5048,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(ref q, ref query);
 		}
@@ -5115,7 +5091,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(ref q, ref query);
 		}
@@ -5158,7 +5134,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>();
 
@@ -5236,16 +5212,14 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -5371,7 +5345,7 @@ namespace Myriad.ECS.Worlds
             where T10 : IComponent
             where T11 : IComponent
             where T12 : IComponent
-			where TQ : IChunkQuery13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -5407,7 +5381,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -5469,7 +5443,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(ref q, query);
@@ -5513,7 +5487,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(ref q, ref query);
@@ -5559,7 +5533,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(ref q, query);
 		}
@@ -5604,7 +5578,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(ref q, ref query);
 		}
@@ -5649,7 +5623,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(ref q, ref query);
 		}
@@ -5694,7 +5668,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>();
 
@@ -5775,16 +5749,14 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -5911,7 +5883,7 @@ namespace Myriad.ECS.Worlds
             where T11 : IComponent
             where T12 : IComponent
             where T13 : IComponent
-			where TQ : IChunkQuery14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -5948,7 +5920,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -6013,7 +5985,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(ref q, query);
@@ -6059,7 +6031,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(ref q, ref query);
@@ -6107,7 +6079,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(ref q, query);
 		}
@@ -6154,7 +6126,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(ref q, ref query);
 		}
@@ -6201,7 +6173,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(ref q, ref query);
 		}
@@ -6248,7 +6220,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>();
 
@@ -6332,16 +6304,14 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -6469,7 +6439,7 @@ namespace Myriad.ECS.Worlds
             where T12 : IComponent
             where T13 : IComponent
             where T14 : IComponent
-			where TQ : IChunkQuery15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;
@@ -6507,7 +6477,7 @@ namespace Myriad.ECS.Worlds
 
 namespace Myriad.ECS.Queries
 {
-	public interface IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+	public interface IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		where T0 : IComponent
         where T1 : IComponent
         where T2 : IComponent
@@ -6575,7 +6545,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(ref q, query);
@@ -6623,7 +6593,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>, new()
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>, new()
 		{
 			var q = new TQ();
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(ref q, ref query);
@@ -6673,7 +6643,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(ref q, query);
 		}
@@ -6722,7 +6692,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(ref q, ref query);
 		}
@@ -6771,7 +6741,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		{
 			return ExecuteChunk<TQ, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(ref q, ref query);
 		}
@@ -6820,7 +6790,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>();
 
@@ -6907,16 +6877,14 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		{
 			query ??= GetCachedQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (!query.Any())
+			if (archetypes.Count == 0 || !query.Any())
 				return 0;
 
 			#region Parallel Work Loop Setup
@@ -7045,7 +7013,7 @@ namespace Myriad.ECS.Worlds
             where T13 : IComponent
             where T14 : IComponent
             where T15 : IComponent
-			where TQ : IChunkQuery16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
+			where TQ : IChunkQuery<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>
 		{
 			private readonly TQ _q;
 			private readonly Chunks.Chunk _chunk;

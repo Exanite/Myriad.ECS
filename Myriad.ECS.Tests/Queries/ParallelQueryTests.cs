@@ -2,7 +2,7 @@
 using Myriad.ECS.Queries;
 using Myriad.ECS.Worlds;
 
-namespace Myriad.ECS.Tests;
+namespace Myriad.ECS.Tests.Queries;
 
 [TestClass]
 public class ParallelQueryTests
@@ -49,6 +49,10 @@ public class ParallelQueryTests
         // check they're 128
         foreach (var (_, v) in w.Query<ComponentInt32>())
             Assert.AreEqual(128, v.Ref.Value);
+
+        // check they're 128 in a different way
+        foreach (var item in w.Query<ComponentInt32>())
+            Assert.AreEqual(128, item.Item0.Value);
 
         // Check everything else is 0
         foreach (var (_, v) in w.Query<ComponentByte>())
@@ -100,7 +104,7 @@ public class ParallelQueryTests
     }
 
     private readonly struct IncrementInt
-        : IChunkQuery1<ComponentInt32>
+        : IChunkQuery<ComponentInt32>
     {
         public void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e, Span<ComponentInt32> t0)
         {
@@ -110,7 +114,7 @@ public class ParallelQueryTests
     }
 
     private readonly struct SometimesThrowOtherwiseIncrement
-        : IChunkQuery1<ComponentInt32>
+        : IChunkQuery<ComponentInt32>
     {
         public void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e, Span<ComponentInt32> t0)
         {
