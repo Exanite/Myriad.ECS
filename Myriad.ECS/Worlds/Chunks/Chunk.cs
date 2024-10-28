@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Myriad.ECS.Allocations;
+using Myriad.ECS.Collections;
 using Myriad.ECS.IDs;
 using Myriad.ECS.Worlds.Archetypes;
 
@@ -54,11 +55,23 @@ public sealed class Chunk
     //    return ref GetRef<T>(entity, index);
     //}
 
-    internal ref T GetRef<T>(Entity entity, int rowIndex)
+    internal ref T GetRef<T>(EntityId entityId, int rowIndex)
         where T : IComponent
     {
-        Debug.Assert(_entities[rowIndex] == entity, "Mismatched entities in chunk");
+        Debug.Assert(_entities[rowIndex].ID == entityId, "Mismatched entities in chunk");
         return ref GetRef<T>(rowIndex);
+    }
+
+    public RefT<T> GetRefT<T>(EntityId entityId, int rowIndex)
+        where T : IComponent
+    {
+        Debug.Assert(_entities[rowIndex].ID == entityId, "Mismatched entities in chunk");
+
+#if NET6_0_OR_GREATER
+        return new RefT<T>(ref GetRef<T>(rowIndex));
+#else
+        return new RefT<T>(GetComponentArray<T>(), rowIndex);
+#endif
     }
 
     internal ref T GetRef<T>(int rowIndex)
@@ -86,11 +99,11 @@ public sealed class Chunk
         return GetComponentArray<T>(id).AsSpan(0, EntityCount);
     }
 
-    //internal T[] GetComponentArray<T>()
-    //    where T : IComponent
-    //{
-    //    return GetComponentArray<T>(ComponentID<T>.ID);
-    //}
+    internal T[] GetComponentArray<T>()
+        where T : IComponent
+    {
+        return GetComponentArray<T>(ComponentID<T>.ID);
+    }
 
     /// <summary>
     /// Get the component array, providing the component ID if it is known.
@@ -113,7 +126,7 @@ public sealed class Chunk
     #region add/remove entity
     // Note that these must be called only from Archetype! The Archetype needs to do some bookeeping on create/destroy.
 
-    internal Row AddEntity(Entity entity, ref EntityInfo info)
+    internal Row AddEntity(EntityId entity, ref EntityInfo info)
     {
         // It is safe to only debug assert here. It should never happen if Myriad is working
         // correctly. If it does somehow go wrong you'll get an index out of range exception
@@ -124,7 +137,7 @@ public sealed class Chunk
         var index = EntityCount++;
 
         // Occupy this row
-        _entities[index] = entity;
+        _entities[index] = entity.ToEntity(Archetype.World);
 
         // Update global entity info to refer to this location
         info.RowIndex = index;
@@ -159,7 +172,7 @@ public sealed class Chunk
         {
             var lastEntity = _entities[EntityCount];
             var lastEntityIndex = EntityCount;
-            ref var lastInfo = ref Archetype.World.GetEntityInfo(lastEntity);
+            ref var lastInfo = ref Archetype.World.GetEntityInfo(lastEntity.ID);
             _entities[index] = lastEntity;
             _entities[lastEntityIndex] = default;
             lastInfo.RowIndex = index;
@@ -176,7 +189,7 @@ public sealed class Chunk
         }
     }
 
-    internal Row MigrateTo(Entity entity, ref EntityInfo info, Archetype to)
+    internal Row MigrateTo(EntityId entity, ref EntityInfo info, Archetype to)
     {
         // Copy current entity info so we can use it later
         var oldInfo = info;

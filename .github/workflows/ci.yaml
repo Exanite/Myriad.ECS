@@ -10,18 +10,13 @@ on:
     
 jobs:
   build:
-
-    env:
-      BUILD_CONFIG: 'Release'
-      SOLUTION: 'Myriad.ECS.sln'
-
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
 
     - name: Setup NuGet
-      uses: NuGet/setup-nuget@v1.0.5
+      uses: NuGet/setup-nuget@v2.0.0
 
     - name: Restore dependencies
       run: nuget restore $SOLUTION
@@ -32,10 +27,10 @@ jobs:
         dotnet-version: 8.x.x
 
     - name: Build
-      run: dotnet build $SOLUTION --configuration $BUILD_CONFIG --no-restore
+      run: dotnet build Myriad.ECS.sln --configuration Release
 
     - name: Run tests
-      run: dotnet test /p:Configuration=$BUILD_CONFIG --no-restore --no-build --verbosity normal
+      run: dotnet test /p:Configuration=Release --verbosity normal
 
     - name: Publish
       #if: startsWith(github.ref, 'refs/heads/release')
