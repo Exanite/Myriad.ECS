@@ -10,11 +10,12 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>Myriad.ECS</Title>
     <Authors>Martin Evans</Authors>
-    <Version>26.0.0</Version>
+    <Version>36.2.2</Version>
     <Description>Myriad.ECS is a high performance Entity Component System (ECS).</Description>
     <PackageProjectUrl>https://github.com/martindevans/Myriad.ECS</PackageProjectUrl>
     <RepositoryUrl>https://github.com/martindevans/Myriad.ECS</RepositoryUrl>
     <PackageTags>games, simulation, ECS</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,10 +35,10 @@
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
     </Compile>
-    <Compile Update="Components\Sharding.cs">
+    <Compile Update="Queries\IQueryCollect.cs">
+      <DependentUpon>IQueryCollect.tt</DependentUpon>
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
-      <DependentUpon>Sharding.tt</DependentUpon>
     </Compile>
     <Compile Update="Queries\IVectorChunkQuery.cs">
       <DependentUpon>IVectorChunkQuery.tt</DependentUpon>
@@ -56,6 +57,11 @@
     </Compile>
     <Compile Update="Queries\CachedQueries.cs">
       <DependentUpon>CachedQueries.tt</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+    <Compile Update="Queries\QueryMapReduceReducers.cs">
+      <DependentUpon>QueryMapReduceReducers.tt</DependentUpon>
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
     </Compile>
@@ -106,8 +112,12 @@
       <LastGenOutput>RefTuple.cs</LastGenOutput>
       <Generator>TextTemplatingFileGenerator</Generator>
     </None>
-    <None Update="Components\Sharding.tt">
-      <LastGenOutput>Sharding.cs</LastGenOutput>
+    <None Update="Queries\IQueryCollect.tt">
+      <LastGenOutput>IQueryCollect.cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
+    <None Update="Queries\QueryMapReduceReducers.tt">
+      <LastGenOutput>QueryMapReduceReducers.cs</LastGenOutput>
       <Generator>TextTemplatingFileGenerator</Generator>
     </None>
     <None Update="Queries\TemplateHeaders\ParallelWorkLoopSetup.t4">

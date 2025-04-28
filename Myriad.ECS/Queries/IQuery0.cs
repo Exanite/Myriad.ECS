@@ -2,13 +2,28 @@
 
 namespace Myriad.ECS.Queries
 {
+    /// <summary>
+    /// Interface for query handlers which operate over entities
+    /// </summary>
     public interface IQuery
     {
+        /// <summary>
+        /// Execute this query handler for an entity
+        /// </summary>
+        /// <param name="e"></param>
         public void Execute(Entity e);
     }
 
+    /// <summary>
+    /// Interface for query handlers which operate over entire chunks of entities
+    /// </summary>
     public interface IChunkQuery
     {
+        /// <summary>
+        /// Execute this query handler for a chunk of entities
+        /// </summary>
+        /// <param name="chunk"></param>
+        /// <param name="e"></param>
         public void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e);
     }
 }
@@ -17,6 +32,13 @@ namespace Myriad.ECS.Worlds
 {
     public partial class World
     {
+        /// <summary>
+        /// Execute a query, selecting entities which match the given <see cref="QueryDescription"/>
+        /// </summary>
+        /// <typeparam name="TQ"></typeparam>
+        /// <param name="q"></param>
+        /// <param name="query"></param>
+        /// <returns></returns>
         public int Execute<TQ>(
             TQ q,
             QueryDescription query
@@ -24,15 +46,11 @@ namespace Myriad.ECS.Worlds
             where TQ : IQuery
         {
             var archetypes = query.GetArchetypes();
-            if (archetypes.Count == 0)
-                return 0;
 
             var count = 0;
             foreach (var archetypeMatch in archetypes)
             {
                 var archetype = archetypeMatch.Archetype;
-                if (archetype.EntityCount == 0)
-                    continue;
 
                 count += archetype.EntityCount;
 
@@ -40,10 +58,7 @@ namespace Myriad.ECS.Worlds
                 for (var c = chunks.Count - 1; c >= 0; c--)
                 {
                     var chunk = chunks[c];
-
-                    var entities = chunk.Entities;
-                    if (entities.Length == 0)
-                        continue;
+                    var entities = chunk.Entities.Span;
 
                     for (var i = entities.Length - 1; i >= 0; i--)
                         q.Execute(entities[i]);
@@ -56,6 +71,13 @@ namespace Myriad.ECS.Worlds
 
     public partial class World
     {
+        /// <summary>
+        /// Execute a query, selecting entities which match the given <see cref="QueryDescription"/>
+        /// </summary>
+        /// <typeparam name="TQ"></typeparam>
+        /// <param name="q"></param>
+        /// <param name="query"></param>
+        /// <returns></returns>
         public int ExecuteChunk<TQ>(
             TQ q,
             QueryDescription query
@@ -63,15 +85,11 @@ namespace Myriad.ECS.Worlds
             where TQ : IChunkQuery
         {
             var archetypes = query.GetArchetypes();
-            if (archetypes.Count == 0)
-                return 0;
 
             var count = 0;
             foreach (var archetypeMatch in archetypes)
             {
                 var archetype = archetypeMatch.Archetype;
-                if (archetype.EntityCount == 0)
-                    continue;
 
                 count += archetype.EntityCount;
 
@@ -79,10 +97,7 @@ namespace Myriad.ECS.Worlds
                 for (var c = chunks.Count - 1; c >= 0; c--)
                 {
                     var chunk = chunks[c];
-
-                    var entities = chunk.Entities;
-                    if (entities.Length == 0)
-                        continue;
+                    var entities = chunk.Entities.Span;
 
                     q.Execute(new ChunkHandle(chunk), entities);
                 }

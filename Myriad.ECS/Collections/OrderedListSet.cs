@@ -1,5 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using Myriad.ECS.Extensions;
+﻿using System.Collections;
+using System.Runtime.InteropServices;
 using Myriad.ECS.IDs;
 
 namespace Myriad.ECS.Collections;
@@ -9,10 +9,13 @@ namespace Myriad.ECS.Collections;
 /// </summary>
 /// <typeparam name="TItem"></typeparam>
 internal class OrderedListSet<TItem>
-    where TItem : struct, IComparable<TItem>, IEquatable<TItem>
+    : IReadOnlyList<TItem>
+    where TItem : struct, IComparable<TItem>, IEquatable<TItem> 
 {
     private readonly List<TItem> _items = [ ];
     public int Count => _items.Count;
+
+    public TItem this[int i] => _items[i];
 
     #region constructors
     public OrderedListSet()
@@ -23,6 +26,13 @@ internal class OrderedListSet<TItem>
     public OrderedListSet(List<TItem> items)
     {
         _items.EnsureCapacity(items.Count);
+        foreach (var item in items)
+            Add(item);
+    }
+
+    public OrderedListSet(ReadOnlySpan<TItem> items)
+    {
+        _items.EnsureCapacity(items.Length);
         foreach (var item in items)
             Add(item);
     }
@@ -46,7 +56,17 @@ internal class OrderedListSet<TItem>
     }
     #endregion
 
+    internal void CopyTo(List<TItem> dest)
+    {
+        dest.AddRange(_items);
+    }
+
     #region add
+    internal void EnsureCapacity(int capacity)
+    {
+        _items.EnsureCapacity(capacity);
+    }
+
     public bool Add(TItem item)
     {
         var index = _items.BinarySearch(item);
@@ -56,21 +76,37 @@ internal class OrderedListSet<TItem>
         _items.Insert(~index, item);
         return true;
     }
-    #endregion
 
-    #region unionwith
-    internal void UnionWith(FrozenOrderedListSet<TItem> items)
+    public void AddRange<TValue>(Dictionary<TItem, TValue>.KeyCollection keys)
     {
+        EnsureCapacity(Count + keys.Count);
+
         if (_items.Count == 0)
         {
-            _items.EnsureCapacity(items.Count);
-            foreach (var item in items)
-                _items.Add(item);
+            // Since this is a key collection we know all the items must be
+            // unique, therefore we can just add and sort
+            _items.AddRange(keys);
+            _items.Sort();
         }
         else
         {
-            _items.EnsureCapacity(_items.Count + items.Count);
-            foreach (var item in items)
+            foreach (var key in keys)
+                Add(key);
+        }
+    }
+    #endregion
+
+    #region unionwith
+    internal void UnionWith(FrozenOrderedListSet<TItem> set)
+    {
+        if (_items.Count == 0)
+        {
+            set.CopyTo(_items);
+        }
+        else
+        {
+            _items.EnsureCapacity(_items.Count + set.Count);
+            foreach (var item in set)
                 Add(item);
         }
     }
@@ -104,11 +140,21 @@ internal class OrderedListSet<TItem>
     /// <returns></returns>
     public FrozenOrderedListSet<TItem> Freeze()
     {
-        return new FrozenOrderedListSet<TItem>(this);
+        return FrozenOrderedListSet<TItem>.Create(this);
     }
 
     #region GetEnumerator
     public List<TItem>.Enumerator GetEnumerator()
+    {
+        return _items.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return _items.GetEnumerator();
+    }
+
+    IEnumerator<TItem> IEnumerable<TItem>.GetEnumerator()
     {
         return _items.GetEnumerator();
     }
@@ -157,11 +203,33 @@ internal class OrderedListSet<TItem>
         if (other.Count > Count)
             return false;
 
-        foreach (var item in other._items)
-            if (_items.BinarySearch(item) < 0)
-                return false;
+        // Move forward through both lists, checking that all items in `other` are in `this`
+        var i = 0;
+        var j = 0;
+        while (i < _items.Count && j < other.Count)
+        {
+            var cmp = _items[i].CompareTo(other._items[j]);
 
-        return true;
+            if (cmp < 0)
+            {
+                // Item in `this` < `other`. That's acceptable, it means the item is in the superset and not in the subset.
+                // Move to the next item in the superset.
+                i++;
+            }
+            else if (cmp == 0)
+            {
+                // Items are equal, move to the next item in both
+                i++;
+                j++;
+            }
+            else
+            {
+                // Item in `other` < `this`. That means `other` is not a subset!
+                return false;
+            }
+        }
+
+        return j == other.Count;
     }
     #endregion
 
@@ -173,9 +241,20 @@ internal class OrderedListSet<TItem>
         if (other.Count == 0)
             return false;
 
-        foreach (var item in other._items)
-            if (Contains(item))
+        // Move forward through both lists, checking if any item in `other` is in `this`
+        var i = 0;
+        var j = 0;
+        while (i < _items.Count && j < other.Count)
+        {
+            var cmp = _items[i].CompareTo(other._items[j]);
+
+            if (cmp < 0)
+                i++;
+            else if (cmp > 0)
+                j++;
+            else
                 return true;
+        }
 
         return false;
     }
@@ -184,7 +263,7 @@ internal class OrderedListSet<TItem>
     #region SetEquals
     public bool SetEquals(HashSet<TItem> other)
     {
-        // Try to get the count, if possible. This allows a possible early exit without any work.
+        // Can't be equal if counts are different
         if (other.Count != Count)
             return false;
 
@@ -216,12 +295,28 @@ internal class OrderedListSet<TItem>
 
         return a.SequenceEqual(b);
 #else
-        for (var i = other._items.Count - 1; i >= 0; i--)
-            if (!_items[i].Equals(other._items[i]))
+
+        // Both sets are in order, so lists should be identical
+        for (var i = 0; i < _items.Count; i++)
+            if (_items[i].CompareTo(other._items[i]) != 0)
                 return false;
 
         return true;
 #endif
+    }
+
+    public bool SetEquals<TV>(Dictionary<TItem, TV> other)
+    {
+        // Can't be equal if counts are different
+        if (other.Count != Count)
+            return false;
+
+        // Ensure every item in this is in other
+        foreach (var item in other.Keys)
+            if (_items.BinarySearch(item) < 0)
+                return false;
+
+        return true;
     }
     #endregion
 
@@ -233,11 +328,10 @@ internal class OrderedListSet<TItem>
 
     internal TItem Single()
     {
-        return _items.Count switch
-        {
-            1 => _items[0],
-            _ => throw new InvalidOperationException($"Cannot get single item, there are {_items.Count} items"),
-        };
+        if (_items.Count != 1)
+            throw new InvalidOperationException($"Cannot get single item, there are {_items.Count} items");
+
+        return _items[0];
     }
 
     internal bool Any(Func<TItem, bool> predicate)

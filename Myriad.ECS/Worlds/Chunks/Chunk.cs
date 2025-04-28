@@ -33,7 +33,7 @@ public sealed class Chunk
     /// <summary>
     /// Get all of the entities in this chunk
     /// </summary>
-    public ReadOnlySpan<Entity> Entities => _entities.AsSpan(0, EntityCount);
+    public ReadOnlyMemory<Entity> Entities => _entities.AsMemory(0, EntityCount);
 
     internal Chunk(Archetype archetype, int size, int[] componentIndexLookup, IReadOnlyList<Type> componentTypes, IReadOnlyList<ComponentID> ids)
     {
@@ -77,7 +77,7 @@ public sealed class Chunk
     internal ref T GetRef<T>(int rowIndex)
         where T : IComponent
     {
-        return ref GetSpan<T>(ComponentID<T>.ID)[rowIndex];
+        return ref GetRef<T>(rowIndex, ComponentID<T>.ID);
     }
 
     internal ref T GetRef<T>(int rowIndex, ComponentID id)
@@ -126,6 +126,21 @@ public sealed class Chunk
     #region add/remove entity
     // Note that these must be called only from Archetype! The Archetype needs to do some bookeeping on create/destroy.
 
+    internal void Clear()
+    {
+        Debug.Assert(!Archetype.HasPhantomComponents);
+
+        // Clear out the components. This prevents chunks holding
+        // onto references to dead managed components, and keeping them in memory.
+        foreach (var component in _components)
+            Array.Clear(component, 0, component.Length);
+
+        // Not strictly necessary, clean up all the IDs so they're default instead of some invalid value.
+        Array.Clear(_entities, 0, _entities.Length);
+
+        EntityCount = 0;
+    }
+
     internal Row AddEntity(EntityId entity, ref EntityInfo info)
     {
         // It is safe to only debug assert here. It should never happen if Myriad is working
@@ -150,19 +165,16 @@ public sealed class Chunk
     {
         var index = info.RowIndex;
 
+        // Clear out the components. This prevents chunks holding
+        // onto references to dead managed components, and keeping them in memory.
+        foreach (var component in _components)
+            Array.Clear(component, index, 1);
+
         // No work to do if there are no other entities
         EntityCount -= 1;
         if (EntityCount == 0)
         {
             _entities[index] = default;
-
-            foreach (var component in _components)
-            {
-                // Clear out the components. This prevents chunks holding 
-                // onto references to dead managed components, and keeping them in memory.
-                Array.Clear(component, index, 1);
-            }
-
             return;
         }
 
@@ -182,7 +194,7 @@ public sealed class Chunk
             {
                 Array.Copy(component, lastEntityIndex, component, index, 1);
 
-                // Clear out the components we just moved. This prevents chunks holding 
+                // Clear out the components we just moved. This prevents chunks holding
                 // onto references to dead managed components, and keeping them in memory.
                 Array.Clear(component, lastEntityIndex, 1);
             }
@@ -223,13 +235,5 @@ public sealed class Chunk
 
         return destRow;
     }
-#endregion
-
-    public Memory<Entity> GetEntitiesMemory(int start, int count)
-    {
-        if (start + count > EntityCount)
-            throw new ArgumentException("start + count is more than the number of entities", nameof(count));
-
-        return _entities.AsMemory(start, count);
-    }
+    #endregion
 }

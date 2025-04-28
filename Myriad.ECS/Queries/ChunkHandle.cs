@@ -24,7 +24,7 @@ public readonly ref struct ChunkHandle
     /// <summary>
     /// Get the entities in this chunk
     /// </summary>
-    public ReadOnlySpan<Entity> Entities => _chunk.Entities;
+    public ReadOnlyMemory<Entity> Entities => _chunk.Entities;
 
     internal ChunkHandle(Chunk chunk)
     {
@@ -49,7 +49,7 @@ public readonly ref struct ChunkHandle
     /// <returns></returns>
     private bool HasComponent(ComponentID id)
     {
-        return _chunk.Archetype.Components.Contains(id);
+        return Archetype.Components.Contains(id);
     }
 
     /// <summary>

@@ -9,12 +9,12 @@ using Myriad.ECS.Worlds;
 namespace Benchmarks;
 
 //[HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.BranchInstructions)]
-[ThreadingDiagnoser]
+//[ThreadingDiagnoser]
 //[MemoryDiagnoser]
-[ShortRunJob]
+//[ShortRunJob]
 public class QueryBenchmark
 {
-    [Params(100_000, 10_000_000)]
+    [Params(100_000, 1_000_000)]
     public int EntityCount = 1_000_000;
 
     private World _world = null!;
@@ -51,27 +51,28 @@ public class QueryBenchmark
         {
             switch (random.Next(0, 5))
             {
-                case 0: entity.Set(new ComponentByte((byte)i), true); break;
-                case 1: entity.Set(new ComponentInt16((short)i), true); break;
-                case 2: entity.Set(new ComponentFloat(i), true); break;
-                case 3: entity.Set(new ComponentInt32(i), true); break;
-                case 4: entity.Set(new ComponentInt64(i), true); break;
+                case 0: entity.Set(new ComponentByte((byte)i), CommandBuffer.DuplicateSet.Overwrite); break;
+                case 1: entity.Set(new ComponentInt16((short)i), CommandBuffer.DuplicateSet.Overwrite); break;
+                case 2: entity.Set(new ComponentFloat(i), CommandBuffer.DuplicateSet.Overwrite); break;
+                case 3: entity.Set(new ComponentInt32(i), CommandBuffer.DuplicateSet.Overwrite); break;
+                case 4: entity.Set(new ComponentInt64(i), CommandBuffer.DuplicateSet.Overwrite); break;
             }
         }
     }
 
-    //[Benchmark]
-    //public void Query()
-    //{
-    //    var q = new QueryAction();
-    //    _world.Execute<QueryAction, Position, Velocity>(ref q, _query);
-    //}
+    [Benchmark]
+    public void Query()
+    {
+        var q = new QueryAction();
+        _world.Execute<QueryAction, Position, Velocity>(ref q, _query);
+    }
 
-    //[Benchmark]
-    //public void ChunkQuery()
-    //{
-    //    _world.ExecuteChunk<ChunkQueryAction, Position, Velocity>(new ChunkQueryAction(), _query);
-    //}
+    [Benchmark]
+    public void ChunkQuery()
+    {
+        var q = new ChunkQueryAction();
+        _world.ExecuteChunk<ChunkQueryAction, Position, Velocity>(ref q, _query);
+    }
 
     //[Benchmark]
     //public void SimdChunkQuery()
@@ -79,17 +80,17 @@ public class QueryBenchmark
     //    _world.ExecuteVectorChunk<SimdChunkQueryAction2, Position, float, Velocity, float>(new SimdChunkQueryAction2(), _query);
     //}
 
-    [Benchmark]
-    public void ParallelQuery()
-    {
-        _world.ExecuteParallel<QueryAction, Position, Velocity>(new QueryAction(), _query);
-    }
+    //[Benchmark]
+    //public void ParallelQuery()
+    //{
+    //    _world.ExecuteParallel<QueryAction, Position, Velocity>(new QueryAction(), _query);
+    //}
 
-    [Benchmark]
-    public void ParallelChunkQuery()
-    {
-        _world.ExecuteChunkParallel<ChunkQueryAction, Position, Velocity>(new ChunkQueryAction(), _query);
-    }
+    //[Benchmark]
+    //public void ParallelChunkQuery()
+    //{
+    //    _world.ExecuteChunkParallel<ChunkQueryAction, Position, Velocity>(new ChunkQueryAction(), _query);
+    //}
 
     //[Benchmark]
     //public void QueryEnumerable()
@@ -113,10 +114,10 @@ public class QueryBenchmark
         public readonly void Execute(Entity e, ref Position pos, ref Velocity vel)
         {
             pos.Value += vel.Value;
-            pos.Value += new Vector2(
-                (float)Math.Sqrt(Math.Abs(Math.Tanh(pos.Value.X))),
-                (float)Math.Tanh(pos.Value.Y)
-            );
+            //pos.Value += new Vector2(
+            //    (float)Math.Sqrt(Math.Abs(Math.Tanh(pos.Value.X))),
+            //    (float)Math.Tanh(pos.Value.Y)
+            //);
         }
     }
 
@@ -127,12 +128,14 @@ public class QueryBenchmark
         {
             for (var i = 0; i < pos.Length; i++)
             {
-                pos[i].Value += vel[i].Value;
+                ref var posi = ref pos[i];
 
-                pos[i].Value += new Vector2(
-                    (float)Math.Sqrt(Math.Abs(Math.Tanh(pos[i].Value.X))),
-                    (float)Math.Tanh(pos[i].Value.Y)
-                );
+                posi.Value += vel[i].Value;
+
+                //posi.Value += new Vector2(
+                //    (float)Math.Sqrt(Math.Abs(Math.Tanh(posi.Value.X))),
+                //    (float)Math.Tanh(posi.Value.Y)
+                //);
             }
         }
     }

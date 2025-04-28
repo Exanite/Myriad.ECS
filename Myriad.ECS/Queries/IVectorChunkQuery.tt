@@ -9,6 +9,7 @@
 #>
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 using Myriad.ECS.Queries;
 using Myriad.ECS.IDs;
 
@@ -22,6 +23,12 @@ using Myriad.ECS.IDs;
 #>
 namespace Myriad.ECS.Queries
 {
+	/// <summary>
+	/// Execute over a vector of values, taken from components. Mapping from components to vectorised values
+	/// depends on the exact alignment of the types selected to the component and the vector. For example if
+	/// a component is a Vector3 and the vector is float then the values in the vector will be the individual
+	/// vector elements in sequence.
+	/// </summary>
 	public interface <#= Name(i) #><<#= VectorGenerics(i) #>>
 		where <#= VectorConstraints(sumij, 8) #>
 	{
@@ -61,6 +68,7 @@ namespace Myriad.ECS.Worlds
         /// <param name="q">The TQ instance which will be executed for each chunk</param>
         /// <param name="query">A query expressing which entities to execute this query over</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
 		public int ExecuteVectorChunk<TQ, <#= Generics(i) #>>(
 			TQ q,
 			QueryDescription? query = null
@@ -171,6 +179,13 @@ namespace Myriad.ECS.Worlds
 
 
 <#+ 
+	static string CoverageAttribute(int index)
+	{
+		if (index < 2)
+			return "";
+		return "[ExcludeFromCodeCoverage]";
+	}
+
 	static string Constraints(int count, int spaces = 4)
     {
         var prefix = new string(' ', spaces);

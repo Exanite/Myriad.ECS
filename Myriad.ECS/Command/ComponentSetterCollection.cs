@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using Myriad.ECS.Allocations;
 using Myriad.ECS.Components;
-using Myriad.ECS.Extensions;
 using Myriad.ECS.IDs;
 using Myriad.ECS.Worlds.Archetypes;
 
@@ -12,13 +11,25 @@ namespace Myriad.ECS.Command;
 /// </summary>
 internal class ComponentSetterCollection
 {
-    private readonly SortedList<ComponentID, IComponentList> _components = [ ];
+    private readonly Dictionary<ComponentID, IComponentList> _components = [ ];
 
     public void Clear()
     {
-        foreach (var (_, value) in _components.Enumerable())
+        foreach (var (_, value) in _components)
             value.Recycle();
         _components.Clear();
+    }
+
+    public void ClearAndDispose(ref LazyCommandBuffer buffer)
+    {
+        foreach (var (cid, components) in _components)
+        {
+            if (!cid.IsDisposableComponent)
+                continue;
+            components.DisposeAll(ref buffer);
+        }
+
+        Clear();
     }
 
     public SetterId Add<T>(T value)
@@ -43,6 +54,12 @@ internal class ComponentSetterCollection
         ((GenericComponentList<T>)_components[id]).Overwrite(index, value);
     }
 
+    public void Discard<T>(T value) where T : IComponent
+    {
+        var id = ComponentID<T>.ID;
+        ((GenericComponentList<T>)_components[id]).Discard(value);
+    }
+
     public void Write(SetterId id, Row row)
     {
         var list = _components[id.ID];
@@ -54,18 +71,18 @@ internal class ComponentSetterCollection
     /// </summary>
     /// <param name="sets"></param>
     /// <param name="buffer"></param>
-    public void Dispose(SortedList<ComponentID, SetterId>? sets, ref LazyCommandBuffer buffer)
+    public void Dispose(Dictionary<ComponentID, SetterId>? sets, ref LazyCommandBuffer buffer)
     {
-        if (sets == null)
-            return;
-
-        foreach (var (cid, sid) in sets)
+        if (sets != null)
         {
-            if (!cid.IsDisposableComponent)
-                continue;
+            foreach (var (cid, sid) in sets)
+            {
+                if (!cid.IsDisposableComponent)
+                    continue;
 
-            var list = _components[sid.ID];
-            list.Dispose(sid.Index, ref buffer);
+                var list = _components[sid.ID];
+                list.Dispose(sid.Index, ref buffer);
+            }
         }
     }
 
@@ -110,6 +127,8 @@ internal class ComponentSetterCollection
         void Dispose(int index, ref LazyCommandBuffer buffer);
 
         void DisposeAllOverwritten(ref LazyCommandBuffer lazy);
+
+        void DisposeAll(ref LazyCommandBuffer lazy);
     }
 
     [DebuggerDisplay("Count = {_values.Count}")]
@@ -142,6 +161,12 @@ internal class ComponentSetterCollection
             _values[index.Index] = value;
         }
 
+        public void Discard(T value)
+        {
+            if (_disposer.Component.IsDisposableComponent)
+                _overwrittenDisposableValues.Add(value);
+        }
+
         public void Recycle()
         {
             Pool.Return(this);
@@ -161,6 +186,12 @@ internal class ComponentSetterCollection
         {
             _disposer.DisposeAll(_overwrittenDisposableValues, ref lazy);
             _overwrittenDisposableValues.Clear();
+        }
+
+        public void DisposeAll(ref LazyCommandBuffer lazy)
+        {
+            _disposer.DisposeAll(_values, ref lazy);
+            _disposer.DisposeAll(_overwrittenDisposableValues, ref lazy);
         }
     }
     #endregion

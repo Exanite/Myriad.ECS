@@ -13,7 +13,10 @@ public sealed class QueryDescription
     // Cache of result from last time TryMatch was called
     private MatchResult? _result;
     private readonly ReaderWriterLockSlim _resultLock = new();
-    private readonly OrderedListSet<ComponentID> _temporarySet = new();
+    private readonly OrderedListSet<ComponentID> _temporarySet = [];
+
+    private readonly ComponentBloomFilter _includeBloom;
+    private readonly ComponentBloomFilter _excludeBloom;
 
     /// <summary>
     /// The World that this query is for
@@ -43,13 +46,17 @@ public sealed class QueryDescription
     /// <summary>
     /// Describes a query for entities, bound to a world.
     /// </summary>
-    public QueryDescription(World world, FrozenOrderedListSet<ComponentID> include, FrozenOrderedListSet<ComponentID> exclude, FrozenOrderedListSet<ComponentID> atLeastOne, FrozenOrderedListSet<ComponentID> exactlyOne)
+    internal QueryDescription(World world, FrozenOrderedListSet<ComponentID> include, FrozenOrderedListSet<ComponentID> exclude, FrozenOrderedListSet<ComponentID> atLeastOne, FrozenOrderedListSet<ComponentID> exactlyOne)
     {
         World = world;
+
         Include = include;
         Exclude = exclude;
         AtLeastOneOf = atLeastOne;
         ExactlyOneOf = exactlyOne;
+
+        _includeBloom = include.ToBloomFilter();
+        _excludeBloom = exclude.ToBloomFilter();
     }
 
     /// <summary>
@@ -73,68 +80,120 @@ public sealed class QueryDescription
     }
 
     #region is in query
+    /// <summary>
+    /// Check if this query requires the given component
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
     public bool IsIncluded<T>()
         where T : IComponent
     {
         return IsIncluded(ComponentID<T>.ID);
     }
 
+    /// <summary>
+    /// Check if this query requires the given component
+    /// </summary>
+    /// <returns></returns>
     public bool IsIncluded(Type type)
     {
         return IsIncluded(ComponentID.Get(type));
     }
 
+    /// <summary>
+    /// Check if this query requires the given component
+    /// </summary>
+    /// <returns></returns>
     public bool IsIncluded(ComponentID id)
     {
         return Include.Contains(id);
     }
 
 
+    /// <summary>
+    /// Check if this query excludes entities with the given component
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
     public bool IsExcluded<T>()
         where T : IComponent
     {
         return IsExcluded(ComponentID<T>.ID);
     }
 
+    /// <summary>
+    /// Check if this query excludes entities with the given component
+    /// </summary>
+    /// <returns></returns>
     public bool IsExcluded(Type type)
     {
         return IsExcluded(ComponentID.Get(type));
     }
 
+    /// <summary>
+    /// Check if this query excludes entities with the given component
+    /// </summary>
+    /// <returns></returns>
     public bool IsExcluded(ComponentID id)
     {
         return Exclude.Contains(id);
     }
 
 
+    /// <summary>
+    /// Check if the given component is one of the components which at least one of must be on the entity
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
     public bool IsAtLeastOneOf<T>()
         where T : IComponent
     {
         return IsAtLeastOneOf(ComponentID<T>.ID);
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which at least one of must be on the entity
+    /// </summary>
+    /// <returns></returns>
     public bool IsAtLeastOneOf(Type type)
     {
-        return IsExcluded(ComponentID.Get(type));
+        return IsAtLeastOneOf(ComponentID.Get(type));
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which at least one of must be on the entity
+    /// </summary>
+    /// <returns></returns>
     public bool IsAtLeastOneOf(ComponentID id)
     {
         return AtLeastOneOf.Contains(id);
     }
 
 
+    /// <summary>
+    /// Check if the given component is one of the components which exactly one of must be on the entity
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
     public bool IsExactlyOneOf<T>()
         where T : IComponent
     {
         return IsExactlyOneOf(ComponentID<T>.ID);
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which exactly one of must be on the entity
+    /// </summary>
+    /// <returns></returns>
     public bool IsExactlyOneOf(Type type)
     {
         return IsExactlyOneOf(ComponentID.Get(type));
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which exactly one of must be on the entity
+    /// </summary>
+    /// <returns></returns>
     public bool IsExactlyOneOf(ComponentID id)
     {
         return ExactlyOneOf.Contains(id);
@@ -174,7 +233,7 @@ public sealed class QueryDescription
                         matches.Add(m);
 
                 // Store result for next time
-                _result = new MatchResult(World.Archetypes.Count, new FrozenOrderedListSet<ArchetypeMatch>(matches));
+                _result = new MatchResult(World.Archetypes.Count, FrozenOrderedListSet<ArchetypeMatch>.Create(matches));
 
                 // Return matches
                 return _result.Value.Archetypes;
@@ -184,7 +243,7 @@ public sealed class QueryDescription
             if (_result.Value.IsStale(World))
             {
                 // Lazy copy of the match set, in case there are no matches
-                var copy = (OrderedListSet<ArchetypeMatch>?)null;
+                var copy = default(OrderedListSet<ArchetypeMatch>?);
 
                 // Check every new archetype
                 for (var i = _result.Value.ArchetypeWatermark; i < World.Archetypes.Count; i++)
@@ -208,7 +267,7 @@ public sealed class QueryDescription
                 else
                 {
                     // Create a new match result
-                    _result = new MatchResult(World.Archetypes.Count, new FrozenOrderedListSet<ArchetypeMatch>(copy));
+                    _result = new MatchResult(World.Archetypes.Count, FrozenOrderedListSet<ArchetypeMatch>.Create(copy));
                 }
             }
 
@@ -222,13 +281,22 @@ public sealed class QueryDescription
 
     private ArchetypeMatch? TryMatch(Archetype archetype)
     {
-        var components = archetype.Components;
-
-        if (!components.IsSupersetOf(Include))
+        // Quick bloom filter test if the included components intersects with the archetype.
+        // If this returns false there is definitely no overlap at all and we can early exit.
+        if (Include.Count > 0 && !archetype.ComponentsBloomFilter.MaybeIntersects(in _includeBloom))
             return null;
 
-        if (components.Overlaps(Exclude))
+        // Do the full set check for included components
+        if (!archetype.Components.IsSupersetOf(Include))
             return null;
+
+        // If this is false it means there is definitely _not_ an intersection, which means we can skip
+        // the inner check.
+        if (Exclude.Count > 0 && _excludeBloom.MaybeIntersects(in archetype.ComponentsBloomFilter))
+        {
+            if (archetype.Components.Overlaps(Exclude))
+                return null;
+        }
 
         // Use the temp hashset to do this
         var set = _temporarySet;
@@ -239,7 +307,7 @@ public sealed class QueryDescription
         if (ExactlyOneOf.Count > 0)
         {
             set.Clear();
-            set.UnionWith(components);
+            set.UnionWith(archetype.Components);
             set.IntersectWith(ExactlyOneOf);
             if (set.Count != 1)
             {
@@ -255,7 +323,7 @@ public sealed class QueryDescription
         if (AtLeastOneOf.Count > 0)
         {
             set.Clear();
-            set.UnionWith(components);
+            set.UnionWith(archetype.Components);
             set.IntersectWith(AtLeastOneOf);
             if (set.Count == 0)
             {
@@ -301,6 +369,7 @@ public sealed class QueryDescription
     public readonly record struct ArchetypeMatch(Archetype Archetype, FrozenOrderedListSet<ComponentID>? AtLeastOne, ComponentID? ExactlyOne)
         : IComparable<ArchetypeMatch>
     {
+        /// <inheritdoc />
         public int CompareTo(ArchetypeMatch other)
         {
             return Archetype.Hash.CompareTo(other.Archetype.Hash);
@@ -308,6 +377,7 @@ public sealed class QueryDescription
     }
     #endregion
 
+    #region LINQish
     /// <summary>
     /// Count how many entities match this query
     /// </summary>
@@ -331,6 +401,142 @@ public sealed class QueryDescription
                 return true;
         return false;
     }
+
+    /// <summary>
+    /// Check if this query description matches the given entity
+    /// </summary>
+    /// <param name="entity"></param>
+    /// <returns></returns>
+    public bool Contains(Entity entity)
+    {
+        var info = entity.World.GetEntityInfo(entity.ID);
+        var archetype = new ArchetypeMatch(info.Chunk.Archetype, null, null);
+        return GetArchetypes().Contains(archetype);
+    }
+
+    /// <summary>
+    /// Get the first entity which this query matches (or null)
+    /// </summary>
+    /// <returns></returns>
+    public Entity? FirstOrDefault()
+    {
+        foreach (var archetype in GetArchetypes())
+        {
+            if (archetype.Archetype.EntityCount == 0)
+                continue;
+            
+            for (var i = 0; i < archetype.Archetype.Chunks.Count; i++)
+            {
+                var chunk = archetype.Archetype.Chunks[i];
+                if (chunk.EntityCount > 0)
+                    return chunk.Entities.Span[0];
+            }
+        }
+
+        return default;
+    }
+
+    /// <summary>
+    /// Get the first entity which this query matches (or throw if there are none)
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">Thrown if there are no matches</exception>
+    public Entity First()
+    {
+        return FirstOrDefault()
+            ?? throw new InvalidOperationException("QueryDescription.First() found no matching entities");
+    }
+
+    /// <summary>
+    /// Get the single entity which this query matches (or null if there are none).
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">Thrown if there are more than one matches</exception>
+    public Entity? SingleOrDefault()
+    {
+        Entity? result = default;
+
+        foreach (var archetype in GetArchetypes())
+        {
+            if (archetype.Archetype.EntityCount == 0)
+                continue;
+            
+            for (var i = 0; i < archetype.Archetype.Chunks.Count; i++)
+            {
+                var chunk = archetype.Archetype.Chunks[i];
+                if (chunk.EntityCount == 0)
+                    continue;
+
+                if (chunk.EntityCount > 1 || result.HasValue)
+                    throw new InvalidOperationException("QueryDescription.SingleOrDefault() found more than one matching entity");
+
+                result = chunk.Entities.Span[0];
+            }
+            
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Get a single entity which this query matches (throws if there is not exactly one match)
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException">If none or multiple entities were found.</exception>
+    public Entity Single()
+    {
+        return SingleOrDefault()
+            ?? throw new InvalidOperationException("QueryDescription.SingleOrDefault() found no matching entities");
+    }
+
+    /// <summary>
+    /// Get a random entity matched by this query (or null if there are none).
+    /// </summary>
+    /// <param name="random"></param>
+    /// <returns></returns>
+    public Entity? RandomOrDefault(Random random)
+    {
+        // Get total entity count
+        var count = Count();
+        if (count == 0)
+            return default;
+
+        // Choose the index of the entity
+        var choice = random.Next(0, count);
+
+        // Find that entity
+        foreach (var archetype in GetArchetypes())
+        {
+            // Check if it's within this archetype, if not move to the next archetype
+            if (choice - archetype.Archetype.EntityCount >= 0)
+            {
+                choice -= archetype.Archetype.EntityCount;
+            }
+            else
+            {
+                // Step through chunks
+                var chunks = archetype.Archetype.Chunks;
+                for (var i = 0; i < chunks.Count; i++)
+                {
+                    var chunk = chunks[i];
+
+                    // Check if it's within this chunk, if not move to next chunk
+                    if (choice - chunk.EntityCount >= 0)
+                    {
+                        choice -= chunk.EntityCount;
+                    }
+                    else
+                    {
+                        return chunk.Entities.Span[choice];
+                    }
+                }
+            }
+        }
+
+        // This shouldn't happen
+        return default;
+    }
+    #endregion
 
     #region bulk write
     /// <summary>
@@ -360,7 +566,7 @@ public sealed class QueryDescription
             while (chunks.MoveNext())
             {
                 var chunk = chunks.Current;
-                var arr = chunk.GetSpan<T>(id);
+                var arr = chunk!.GetSpan<T>(id);
                 arr.Fill(item);
             }
         }

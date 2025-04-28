@@ -3,17 +3,23 @@ using System.Diagnostics;
 using Myriad.ECS.Allocations;
 using Myriad.ECS.Collections;
 using Myriad.ECS.Components;
-using Myriad.ECS.Extensions;
 using Myriad.ECS.IDs;
+using Myriad.ECS.Queries;
 using Myriad.ECS.Worlds;
 using Myriad.ECS.Worlds.Archetypes;
 
 namespace Myriad.ECS.Command;
 
+/// <summary>
+/// Buffers up modifications to entities and replays them all at once.
+/// </summary>
 public sealed partial class CommandBuffer
 {
     private uint _version;
 
+    /// <summary>
+    /// The <see cref="World"/> this <see cref="CommandBuffer"/> is modifying
+    /// </summary>
     public World World { get; }
 
     /// <summary>
@@ -23,25 +29,22 @@ public sealed partial class CommandBuffer
 
     private readonly List<BufferedEntityData> _bufferedSets = [ ];
 
-    // Keep track of a fixed number of aggregation nodes. The root node (0) is the node for a new entity
-    // with no components. Nodes store a list of "edges" leading to other nodes. Edges indicate
-    // the addition of that component to the entity. Buffered entities keep track of their node ID. Every
-    // buffered entity with the same node ID therefore has the same archetype. Except for node=-1, which
-    // indicates unknown.
-    private int _aggregateNodesCount;
-    private readonly BufferedAggregateNode[] _bufferedAggregateNodes = new BufferedAggregateNode[512];
-
-    private readonly SortedList<Entity, EntityModificationData> _entityModifications = [ ];
+    private readonly Dictionary<Entity, EntityModificationData> _entityModifications = [ ];
     private readonly List<Entity> _deletes = [ ];
-    private readonly OrderedListSet<Entity> _maybeAddingPhantomComponent = new();
+    private readonly List<QueryDescription> _archetypeDeletes = [ ];
+    private readonly OrderedListSet<Entity> _maybeAddingPhantomComponent = [ ];
 
-    private readonly OrderedListSet<ComponentID> _tempComponentIdSet = new();
+    private readonly OrderedListSet<ComponentID> _tempComponentIdSet = [ ];
 
     private readonly BufferedRelationBinder _bufferedRelationBindings = new();
     private readonly UnbufferedRelationBinder _unbufferedRelationBindings = new();
 
     private Resolver _nextResolver;
 
+    /// <summary>
+    /// Create a new <see cref="CommandBuffer"/> for the given <see cref="World"/>
+    /// </summary>
+    /// <param name="world"></param>
     public CommandBuffer(World world)
     {
         World = world;
@@ -65,7 +68,7 @@ public sealed partial class CommandBuffer
 
         // Lazy command buffer accumulates any changes caused by applying this command buffer
         var lazy = new LazyCommandBuffer(World);
-        
+
         // Delete entities, this must occur before structural changes because it may trigger new structural changes
         // by adding a new phantom component.
         DeleteEntities(ref lazy);
@@ -81,7 +84,7 @@ public sealed partial class CommandBuffer
         _setters.Clear();
         _entityModifications.Clear();
         _tempComponentIdSet.Clear();
-        _aggregateNodesCount = 0;
+        _archetypeEdges.Clear();
 
         // Update the version of this buffer, invalidating all buffered entities for further modification
         unchecked { _version++; }
@@ -96,7 +99,7 @@ public sealed partial class CommandBuffer
         if (lazy.TryGetBuffer(out var lazyBuffer))
         {
             lazyBuffer.Playback().Dispose();
-            World.ReturnPooledCommandBuffer(lazyBuffer);
+            World.ReturnCommandBuffer(lazyBuffer);
         }
 
         // Create a resolver ready to use in the future
@@ -109,6 +112,18 @@ public sealed partial class CommandBuffer
 
     private void DeleteEntities(ref LazyCommandBuffer lazy)
     {
+        foreach (var query in _archetypeDeletes)
+        {
+            foreach (var match in query.GetArchetypes())
+            {
+                if (match.Archetype.EntityCount == 0)
+                    continue;
+
+                World.DeleteImmediate(match.Archetype, ref lazy);
+            }
+        }
+        _archetypeDeletes.Clear();
+
         foreach (var delete in _deletes)
         {
             // If there are any modifications enqueue for this entity, delete them
@@ -153,7 +168,7 @@ public sealed partial class CommandBuffer
         bool IsAddingPhantomComponent(Entity entity)
         {
             if (_maybeAddingPhantomComponent.Contains(entity) && _entityModifications.TryGetValue(entity, out var mod) && mod.Sets != null)
-                foreach (var (key, _) in mod.Sets.Enumerable())
+                foreach (var key in mod.Sets.Keys)
                     if (key.IsPhantomComponent)
                         return true;
 
@@ -166,7 +181,7 @@ public sealed partial class CommandBuffer
         if (_entityModifications.Count > 0)
         {
             // Calculate the new archetype for the entity
-            foreach (var (entity, mod) in _entityModifications.Enumerable())
+            foreach (var (entity, mod) in _entityModifications)
             {
                 // Skip entities that have been deleted since this was enqueued
                 if (!entity.Exists())
@@ -186,7 +201,7 @@ public sealed partial class CommandBuffer
                 var hash = currentArchetype.Hash;
                 if (mod.Sets != null)
                 {
-                    foreach (var (id, _) in mod.Sets.Enumerable())
+                    foreach (var id in mod.Sets.Keys)
                     {
                         if (_tempComponentIdSet.Add(id))
                         {
@@ -211,8 +226,11 @@ public sealed partial class CommandBuffer
                     Pool.Return(mod.Removes);
                 }
 
-                // If it's already a phantom then it will be autodeleted if the last phantom component has been removed.
-                var autodelete = currentArchetype.IsPhantom && !_tempComponentIdSet.Any(static a => a.IsPhantomComponent);
+                // Check if the entity will have any phantom components after this change
+                var destHasPhantomComponents = _tempComponentIdSet.Any(static a => a.IsPhantomComponent);
+
+                // Entity must be auto deleted if, after the change, it will be a `Phantom` but not have any phantom components
+                var autodelete = _tempComponentIdSet.Contains(ComponentID<Phantom>.ID) && !destHasPhantomComponents;
                 if (autodelete)
                 {
                     World.DeleteImmediate(entity.ID, ref lazy);
@@ -236,7 +254,7 @@ public sealed partial class CommandBuffer
 
                     // Run all setters
                     if (mod.Sets != null)
-                        foreach (var (_, set) in mod.Sets.Enumerable())
+                        foreach (var set in mod.Sets.Values)
                             _setters.Write(set, row);
                 }
 
@@ -254,9 +272,9 @@ public sealed partial class CommandBuffer
     {
         _tempComponentIdSet.Clear();
 
-        // Keep a map from node ID -> archetype. This means we only need to calculate it once
-        // per node ID.
-        var archetypeLookup = ArrayPool<Archetype>.Shared.Rent(_aggregateNodesCount);
+        // Keep a map from archetype key -> archetype. This means we only need to calculate it once
+        // per archetype key.
+        var archetypeLookup = ArrayPool<Archetype>.Shared.Rent(_archetypeEdges.Count + 1);
         Array.Clear(archetypeLookup, 0, archetypeLookup.Length);
         try
         {
@@ -267,13 +285,13 @@ public sealed partial class CommandBuffer
 
                 var archetype = GetArchetype(bufferedData, archetypeLookup);
 
-                var (entity, slot) = archetype.CreateEntity();
+                var slot = archetype.CreateEntity();
 
                 // Store the new ID in the resolver so it can be retrieved later
-                resolver.Lookup.Add(bufferedData.Id, entity);
+                resolver.Lookup.Add(bufferedData.Id, slot.Entity);
 
                 // Write the components into the entity
-                foreach (var (_, setter) in components.Enumerable())
+                foreach (var setter in components.Values)
                     _setters.Write(setter, slot);
 
                 // Recycle
@@ -293,40 +311,87 @@ public sealed partial class CommandBuffer
     private Archetype GetArchetype(BufferedEntityData entityData, Archetype?[] archetypeLookup)
     {
         // Check the cache
-        if (entityData.Node >= 0)
+        if (entityData.ArchetypeKey >= 0)
         {
-            var a = archetypeLookup[entityData.Node];
+            var a = archetypeLookup[entityData.ArchetypeKey];
             if (a != null)
                 return a;
         }
 
-        // Build a set of components on this new entity
-        _tempComponentIdSet.Clear();
-        foreach (var (compId, _) in entityData.Setters.Enumerable())
-            _tempComponentIdSet.Add(compId);
-
         // Get the archetype
-        var archetype = World.GetOrCreateArchetype(_tempComponentIdSet);
+        var archetype = World.GetOrCreateArchetype(entityData.Setters);
 
         // If the node ID is positive, cache it
-        if (entityData.Node >= 0)
-            archetypeLookup[entityData.Node] = archetype;
+        if (entityData.ArchetypeKey >= 0)
+            archetypeLookup[entityData.ArchetypeKey] = archetype;
 
         return archetype;
     }
     #endregion
 
+    #region clear
+    /// <summary>
+    /// Clear this <see cref="CommandBuffer"/>
+    /// </summary>
+    /// <exception cref="NotImplementedException"></exception>
+    public void Clear()
+    {
+        // We can't actually make any changes, but we do still need the lazy buffer
+        var lazy = new LazyCommandBuffer(World);
+
+        _setters.ClearAndDispose(ref lazy);
+
+        for (var i = 0; i < _bufferedSets.Count; i++)
+        {
+            var setters = _bufferedSets[i].Setters;
+            setters.Clear();
+            Pool.Return(setters);
+        }
+        _bufferedSets.Clear();
+
+        foreach (var (_, data) in _entityModifications)
+        {
+            if (data.Removes != null)
+            {
+                data.Removes.Clear();
+                Pool.Return(data.Removes);
+            }
+
+            if (data.Sets != null)
+            {
+                data.Sets.Clear();
+                Pool.Return(data.Sets);
+            }
+        }
+        _entityModifications.Clear();
+
+        _archetypeEdges.Clear();
+
+        _deletes.Clear();
+        _archetypeDeletes.Clear();
+        _maybeAddingPhantomComponent.Clear();
+        _tempComponentIdSet.Clear();
+        _bufferedRelationBindings.Clear();
+        _unbufferedRelationBindings.Clear();
+
+        unchecked { _version++; }
+        _nextResolver.Dispose();
+        _nextResolver = Pool<Resolver>.Get();
+        _nextResolver.Configure(this);
+
+        if (lazy.TryGetBuffer(out var cmd))
+            cmd.Clear();
+    }
+    #endregion
+
+    /// <summary>
+    /// Create a new <see cref="Entity"/> in the world.
+    /// </summary>
+    /// <returns></returns>
     public BufferedEntity Create()
     {
-        // Ensure the root aggregation node exists
-        if (_aggregateNodesCount == 0)
-        {
-            _aggregateNodesCount++;
-            _bufferedAggregateNodes[0] = new BufferedAggregateNode();
-        }
-
         // Get a set to hold all of the component setters
-        var set = Pool<SortedList<ComponentID, ComponentSetterCollection.SetterId>>.Get();
+        var set = Pool<Dictionary<ComponentID, ComponentSetterCollection.SetterId>>.Get();
         set.Clear();
 
         // Store this entity in the collection of entities
@@ -337,7 +402,7 @@ public sealed partial class CommandBuffer
         return new BufferedEntity(id, this, _nextResolver);
     }
 
-    private void SetBuffered<T>(uint id, T value, bool allowDuplicates = false)
+    private void SetBuffered<T>(uint id, T value, DuplicateSet duplicateMode)
         where T : IComponent
     {
         Debug.Assert(id < _bufferedSets.Count, "Unknown entity ID in SetBuffered");
@@ -348,15 +413,27 @@ public sealed partial class CommandBuffer
         var bufferedData = _bufferedSets[(int)id];
         var setters = bufferedData.Setters;
 
-        // Try to find this component in the set
         var key = ComponentID<T>.ID;
-        var index =  setters.IndexOfKey(key);
-        if (index != -1)
-        {
-            if (!allowDuplicates)
-                throw new InvalidOperationException("Cannot set the same component twice onto a buffered entity");
 
-            _setters.Overwrite(setters.Values[index], value);
+        if (setters.TryGetValue(key, out var existing))
+        {
+            switch (duplicateMode)
+            {
+                case DuplicateSet.Overwrite:
+                    _setters.Overwrite(existing, value);
+                    break;
+                case DuplicateSet.Discard:
+                    if (key.IsDisposableComponent)
+                        _setters.Discard(value);
+                    break;
+                case DuplicateSet.Throw:
+                    throw new InvalidOperationException("Cannot set the same component twice onto a buffered entity");
+
+                /* dotcover disable */
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(duplicateMode), duplicateMode, null);
+                /* dotcover enable */
+            }
         }
         else
         {
@@ -368,21 +445,21 @@ public sealed partial class CommandBuffer
 
             // Update node id. Skip it if it's in node -1, once an entity is
             // marked as node -1 it's been opted out of aggregation.
-            if (bufferedData.Node != -1)
+            if (bufferedData.ArchetypeKey != -1)
             {
-                bufferedData.Node = _bufferedAggregateNodes[bufferedData.Node].GetNodeIndex(key, _bufferedAggregateNodes, ref _aggregateNodesCount);
+                bufferedData.ArchetypeKey = GetArchetypeKey(bufferedData.ArchetypeKey, key);
                 _bufferedSets[(int)id] = bufferedData;
             }
         }
     }
 
-    private void SetBuffered<T>(uint id, T value, BufferedEntity relation, bool allowDuplicates = false)
+    private void SetBuffered<T>(uint id, T value, BufferedEntity relation, DuplicateSet duplicateMode)
         where T : IEntityRelationComponent
     {
         if (relation._buffer != this)
             throw new ArgumentException("Target of relation must be BufferedEntity from the same CommandBuffer", nameof(relation));
 
-        SetBuffered(id, value, allowDuplicates);
+        SetBuffered(id, value, duplicateMode);
         _bufferedRelationBindings.Create<T>(new BufferedEntity(id, this, _nextResolver), relation);
     }
 
@@ -499,22 +576,28 @@ public sealed partial class CommandBuffer
     /// <param name="entities"></param>
     public void Delete(List<Entity> entities)
     {
-        _deletes.EnsureCapacity(_deletes.Count + entities.Capacity);
+        _deletes.AddRange(entities);
+    }
 
-        foreach (var entity in entities)
-            Delete(entity);
+    /// <summary>
+    /// Bulk delete all entities which match the given query
+    /// </summary>
+    /// <param name="entities"></param>
+    public void Delete(QueryDescription entities)
+    {
+        if (entities.World != World)
+            throw new ArgumentException("Cannot use QueryDescription from one World with CommandBuffer for another World");
+
+        _archetypeDeletes.Add(entities);
     }
 
     private EntityModificationData GetModificationData(Entity entity, bool ensureSet, bool ensureRemove)
     {
-        // Get the index of this entity in the modifications lookup
-        var idx = _entityModifications.IndexOfKey(entity);
-
         // Add it if it's missing
-        if (idx == -1)
+        if (!_entityModifications.TryGetValue(entity, out var existing))
         {
             var mod = new EntityModificationData(
-                ensureSet ? Pool<SortedList<ComponentID, ComponentSetterCollection.SetterId>>.Get() : null,
+                ensureSet ? Pool<Dictionary<ComponentID, ComponentSetterCollection.SetterId>>.Get() : null,
                 ensureRemove ? Pool<OrderedListSet<ComponentID>>.Get() : null
             );
             mod.Sets?.Clear();
@@ -527,12 +610,12 @@ public sealed partial class CommandBuffer
         else
         {
             // Found it, now modify it (if necessary)
-            var mod = _entityModifications.Values[idx];
+            var mod = existing;
 
             var overwrite = false;
             if (mod.Sets == null && ensureSet)
             {
-                mod.Sets = Pool<SortedList<ComponentID, ComponentSetterCollection.SetterId>>.Get();
+                mod.Sets = Pool<Dictionary<ComponentID, ComponentSetterCollection.SetterId>>.Get();
                 overwrite = true;
             }
 
@@ -543,13 +626,7 @@ public sealed partial class CommandBuffer
             }
 
             if (overwrite)
-            {
-#if NET8_0_OR_GREATER
-                _entityModifications.SetValueAtIndex(idx, mod);
-#else
                 _entityModifications[entity] = mod;
-#endif
-            }
 
             return mod;
         }
@@ -564,71 +641,47 @@ public sealed partial class CommandBuffer
         public uint Id { get; }
 
         /// <summary>All setters to be run on this entity</summary>
-        public SortedList<ComponentID, ComponentSetterCollection.SetterId> Setters { get; }
+        public Dictionary<ComponentID, ComponentSetterCollection.SetterId> Setters { get; }
 
         /// <summary>The "Node ID" of this entity, all buffered entities with the same node ID are in the same archetype (except -1)</summary>
-        public int Node { get; set; }
+        public int ArchetypeKey { get; set; }
 
         /// <summary>
         /// Data about a new entity being created
         /// </summary>
         /// <param name="id">ID of this buffered entity, used in resolver to get actual entity</param>
         /// <param name="setters">All setters to be run on this entity</param>
-        public BufferedEntityData(uint id, SortedList<ComponentID, ComponentSetterCollection.SetterId> setters)
+        public BufferedEntityData(uint id, Dictionary<ComponentID, ComponentSetterCollection.SetterId> setters)
         {
             Id = id;
             Setters = setters;
         }
     }
 
-    private struct BufferedAggregateNode
+    private record struct EntityModificationData(Dictionary<ComponentID, ComponentSetterCollection.SetterId>? Sets, OrderedListSet<ComponentID>? Removes);
+
+    /// <summary>
+    /// Indicates how multiple Set operations enqueued for the same entity in this buffer should that be handled
+    /// </summary>
+    public enum DuplicateSet
     {
-        private const int MaxEdges = 16;
+        /// <summary>
+        /// The later set value should overwrite the earlier one.<br />
+        /// <code>Set(A); Set(B);</code>
+        /// Would result in `B`
+        /// </summary>
+        Overwrite,
 
-        private int _edgeCount;
-        private unsafe fixed int _componentIdBuffer[MaxEdges];
-        private unsafe fixed int _nodeIdBuffer[MaxEdges];
+        /// <summary>
+        /// The later set value should be discarded.<br />
+        /// <code>Set(A); Set(B);</code>
+        /// Would result in `A`
+        /// </summary>
+        Discard,
 
-        public int GetNodeIndex(ComponentID component, BufferedAggregateNode[] nodesArr, ref int nodesCount)
-        {
-            unsafe
-            {
-                fixed (int* componentIdBufferPtr = _componentIdBuffer)
-                fixed (int* nodeIdBufferPtr = _nodeIdBuffer)
-                {
-                    var componentIds = new Span<int>(componentIdBufferPtr, MaxEdges);
-                    var nodeIds = new Span<int>(nodeIdBufferPtr, MaxEdges);
-
-                    // Find the index of the edge for this component
-                    var idx = componentIds[.._edgeCount].IndexOf(component.Value);
-                    if (idx >= 0)
-                        return nodeIds[idx];
-
-                    // Not found...
-
-                    // If the buffers are full return node -1. This is the "no particular group" node.
-                    if (_edgeCount == MaxEdges)
-                        return -1;
-
-                    // If the node array itself is full return -1. This is the "no particular group" node.
-                    if (nodesCount == nodesArr.Length)
-                        return -1;
-
-                    // Create a new node
-                    nodesArr[nodesCount] = new BufferedAggregateNode();
-                    var newNodeId = nodesCount++;
-
-                    // Create an edge point to a new node
-                    componentIds[_edgeCount] = component.Value;
-                    nodeIds[_edgeCount] = newNodeId;
-                    _edgeCount++;
-
-                    
-                    return newNodeId;
-                }
-            }
-        }
+        /// <summary>
+        /// The later set value should throw an exception.
+        /// </summary>
+        Throw,
     }
-
-    private record struct EntityModificationData(SortedList<ComponentID, ComponentSetterCollection.SetterId>? Sets, OrderedListSet<ComponentID>? Removes);
 }

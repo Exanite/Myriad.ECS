@@ -5,11 +5,21 @@ using Myriad.ECS.Worlds;
 
 namespace Myriad.ECS;
 
+/// <summary>
+/// An <see cref="Entity"/> is an ID in the <see cref="World"/> which has a set of components associated with it.
+/// </summary>
 [DebuggerDisplay("{ID}")]
 public readonly partial record struct Entity
     : IComparable<Entity>
 {
+    /// <summary>
+    /// The <see cref="World"/> this <see cref="Entity"/> is in
+    /// </summary>
     public readonly World World;
+
+    /// <summary>
+    /// The raw ID of this <see cref="Entity"/>
+    /// </summary>
     public readonly EntityId ID;
 
     /// <summary>
@@ -27,6 +37,12 @@ public readonly partial record struct Entity
     {
         ID = id;
         World = world;
+    }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        return ID.ToString();
     }
 
     /// <summary>

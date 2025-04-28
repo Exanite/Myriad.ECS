@@ -15,9 +15,8 @@ using Myriad.ECS.IDs;
 using Myriad.ECS.Worlds.Archetypes;
 using Myriad.ECS.Allocations;
 using Myriad.ECS.Threading;
-
-//using Parallel = System.Threading.Tasks.Parallel;
-//using Parallel = ParallelTasks.Parallel;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedParameter.Global
@@ -31,9 +30,15 @@ using Myriad.ECS.Threading;
 #>
 namespace Myriad.ECS.Queries
 {
+	/// <summary>
+	/// A query which accepts <#= i #> components
+	/// </summary>
 	public interface IQuery<<#= queryConstraints #>>
 		where <#= Constraints(i, 8) #>
 	{
+		/// <summary>
+		/// Execute the query for a single entity
+		/// </summary>
 		public void Execute(Entity e, <#= Refs(0, i) #>);
 	}
 }
@@ -42,6 +47,21 @@ namespace Myriad.ECS.Worlds
 {
 	public partial class World
 	{
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity. A new TQ() instance is used.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		<#= DocsQueryDescription() #>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int Execute<TQ, <#= queryConstraints #>>(
 			QueryDescription? query = null
 		)
@@ -52,6 +72,21 @@ namespace Myriad.ECS.Worlds
 			return Execute<TQ, <#= queryConstraints #>>(ref q, query);
 		}
 
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity. A new TQ() instance is used.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		<#= DocsRefQueryDescription() #>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int Execute<TQ, <#= queryConstraints #>>(
 			ref QueryDescription? query
 		)
@@ -62,6 +97,22 @@ namespace Myriad.ECS.Worlds
 			return Execute<TQ, <#= queryConstraints #>>(ref q, ref query);
 		}
 
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		/// <param name="q">The instance to execute over every entity.</param>
+		/// <param name="query"></param>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int Execute<TQ, <#= queryConstraints #>>(
 			TQ q,
 			QueryDescription? query = null
@@ -72,6 +123,22 @@ namespace Myriad.ECS.Worlds
 			return Execute<TQ, <#= queryConstraints #>>(ref q, query);
 		}
 
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity. A new TQ() instance is used.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		<#= DocsRefQueryDescription() #>
+		/// <param name="q">The instance to execute over every entity.</param>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int Execute<TQ, <#= queryConstraints #>>(
 			TQ q,
 			ref QueryDescription? query
@@ -82,6 +149,26 @@ namespace Myriad.ECS.Worlds
 			return Execute<TQ, <#= queryConstraints #>>(ref q, ref query);
 		}
 
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		/// <param name="q">
+		/// The instance to execute over every entity. Passed by ref, so changes to the query
+		/// struct will be persistent. This can allow values from one entity to be accessed by
+		/// the next entity, or after the entire Execute call is complete.
+		/// </param>
+		<#= DocsQueryDescription() #>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int Execute<TQ, <#= queryConstraints #>>(
 			ref TQ q,
 			QueryDescription? query = null
@@ -92,6 +179,25 @@ namespace Myriad.ECS.Worlds
 			return Execute<TQ, <#= queryConstraints #>>(ref q, ref query);
 		}
 
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		/// <param name="q">
+		/// The instance to execute over every entity. Passed by ref, so changes to the query
+		/// struct will be persistent. This can allow values from one entity to be accessed by
+		/// the next entity, or after the entire Execute call is complete.
+		/// </param>
+		<#= DocsRefQueryDescription() #>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
 		public int Execute<TQ, <#= queryConstraints #>>(
 			ref TQ q,
 			ref QueryDescription? query
@@ -102,8 +208,6 @@ namespace Myriad.ECS.Worlds
 			query ??= GetCachedQuery<<#= queryConstraints #>>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 <# for (var k = 0; k < i; k++)
 {
@@ -117,45 +221,43 @@ namespace Myriad.ECS.Worlds
 			foreach (var archetypeMatch in archetypes)
 			{
 			    var archetype = archetypeMatch.Archetype;
-				if (archetype.EntityCount == 0)
-					continue;
 
 				count += archetype.EntityCount;
 
-				using var enumerator = archetype.GetChunkEnumerator();
-                while (enumerator.MoveNext())
+				using (var enumerator = archetype.GetChunkEnumerator())
 				{
-					var chunk = enumerator.Current;
-					Debug.Assert(chunk != null);
-
-					var entities = chunk.Entities;
-					if (entities.Length == 0)
-						continue;
-
-<# for (var k = 0; k < i; k++)
-{
-#>
-					var t<#= k #> = chunk.GetSpan<T<#= k #>>(c<#= k #>);
-					Debug.Assert(t<#= k #>.Length == entities.Length);
-<#
-}
-#>
-
-					unsafe
+					while (enumerator.MoveNext())
 					{
-						#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
-						fixed (Entity* eptr = entities)
+						var chunk = enumerator.Current;
+						Debug.Assert(chunk != null);
+
+						var entities = chunk.Entities.Span;
+
 <# for (var k = 0; k < i; k++)
 {
 #>
-						fixed (T<#= k #>* t<#= k #>ptr = t<#= k #>)
+						var t<#= k #> = chunk.GetSpan<T<#= k #>>(c<#= k #>);
+						Debug.Assert(t<#= k #>.Length == entities.Length);
 <#
 }
 #>
-						#pragma warning restore CS8500
+
+						unsafe
 						{
-							for (var i = 0; i < entities.Length; i++)
-								q.Execute(eptr[i], <#= CallParametersPtr(i) #>);
+							#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
+							fixed (Entity* eptr = entities)
+<# for (var k = 0; k < i; k++)
+{
+#>
+							fixed (T<#= k #>* t<#= k #>ptr = t<#= k #>)
+<#
+}
+#>
+							#pragma warning restore CS8500
+							{
+								for (var i = 0; i < entities.Length; i++)
+									q.Execute(eptr[i], <#= CallParametersPtr(i) #>);
+							}
 						}
 					}
 				}
@@ -164,6 +266,150 @@ namespace Myriad.ECS.Worlds
 			return count;
 		}
 
+		/// <summary>
+		/// Execute a query, optionally filtering by a <see cref="QueryDescription"/>. Using a cursor to early exit
+		/// and resume execution.
+		/// </summary>
+		/// <typeparam name="TQ">The type of the query to execute for every entity.</typeparam>
+<# for (var k = 0; k < i; k++)
+{
+#>
+		/// <typeparam name="T<#= k #>">Component <#= k #> to include in query</typeparam>
+<#
+}
+#>
+		/// <param name="q">
+		/// The instance to execute over every entity. Passed by ref, so changes to the query
+		/// struct will be persistent. This can allow values from one entity to be accessed by
+		/// the next entity, or after the entire Execute call is complete.
+		/// </param>
+		/// <param name="cursor">Tracks how manu archetypes and chunks were executed in the query. If the number of processed entities exceeds the budget set in
+		/// the cursor execution will early exit. Passing the same cursor to the same query again will resume at approximately the same position. This is only
+		/// approximate because new archetypes may be created, or chunks may be added and removed</param>
+		<#= DocsRefQueryDescription() #>
+		/// <returns>The number of entities discovered by this query</returns>
+		<#= CoverageAttribute(i) #>
+		public int Execute<TQ, <#= queryConstraints #>>(
+			ref TQ q,
+			ref QueryDescription? query,
+			Cursor cursor
+		)
+			where <#= Constraints(i, 12) #>
+			where TQ : IQuery<<#= queryConstraints #>>
+		{
+			query ??= GetCachedQuery<<#= queryConstraints #>>();
+
+			var archetypes = query.GetArchetypes();
+
+<# for (var k = 0; k < i; k++)
+{
+#>
+			var c<#= k #> = ComponentID<T<#= k #>>.ID;
+<#
+}
+#>
+
+			var chunkCount = 0;
+			var entityCount = 0;
+			var lastCompletedArchetype = default(Archetype);
+
+			using (var archetypesEnumerator = archetypes.GetEnumerator())
+			{
+				// Search forward until the archetype is found
+				while (cursor.LastArchetype != null && cursor.LastArchetype != archetypesEnumerator.Current.Archetype)
+				{
+					if (!archetypesEnumerator.MoveNext())
+					{
+						cursor.Reset();
+						return entityCount;
+					}
+				}
+
+				// Loop over archetypes processing chunks
+				while (archetypesEnumerator.MoveNext())
+				{
+					var archetype = archetypesEnumerator.Current.Archetype;
+					chunkCount = 0;
+
+					var chunks = archetype.GetChunkEnumerator();
+					try
+					{
+						// Skip over chunks
+						if (!chunks.Skip(cursor.Chunks))
+						{
+							cursor.Reset();
+							return entityCount;
+						}
+						cursor.Chunks = 0;
+
+						// Process remaining chunks
+						while (chunks.MoveNext())
+						{
+							chunkCount++;
+
+							var chunk = chunks.Current;
+							Debug.Assert(chunk != null);
+
+							var entities = chunk.Entities.Span;
+							entityCount += entities.Length;
+
+<# for (var k = 0; k < i; k++)
+{
+#>
+							var t<#= k #> = chunk.GetSpan<T<#= k #>>(c<#= k #>);
+							Debug.Assert(t<#= k #>.Length == entities.Length);
+<#
+}
+#>
+
+							unsafe
+							{
+								#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
+								fixed (Entity* eptr = entities)
+<# for (var k = 0; k < i; k++)
+{
+#>
+								fixed (T<#= k #>* t<#= k #>ptr = t<#= k #>)
+<#
+}
+#>
+								#pragma warning restore CS8500
+								{
+									for (var i = 0; i < entities.Length; i++)
+										q.Execute(eptr[i], <#= CallParametersPtr(i) #>);
+								}
+							}
+
+							if (entityCount >= cursor.EntityBudget)
+							{
+								cursor.LastArchetype = lastCompletedArchetype;
+								cursor.Chunks = chunkCount;
+								return entityCount;
+							}
+						}
+					}
+					finally
+					{
+						chunks.Dispose();
+					}
+
+					lastCompletedArchetype = archetype;
+				}
+			}
+
+			cursor.Reset();
+			return entityCount;
+		}
+
+		/// <summary>
+		/// Execute a query in parallel over entities, blocks until complete.
+		/// </summary>
+		/// <param name="q"></param>
+		/// <param name="query"></param>
+		/// <param name="batchSize"></param>
+		/// <returns></returns>
+		/// <exception cref="AggregateException"></exception>
+		<#= CoverageAttribute(i) #>
 		public int ExecuteParallel<TQ, <#= queryConstraints #>>(
 			TQ q,
 			QueryDescription? query = null,
@@ -177,7 +423,7 @@ namespace Myriad.ECS.Worlds
 			var archetypes = query.GetArchetypes();
 
 			// Early exit if there is no work to do, avoiding the cost of setting up the worker pool
-			if (archetypes.Count == 0 || !query.Any())
+			if (!query.Any())
 				return 0;
 
 			batchSize = Math.Clamp(batchSize, 1, Archetype.CHUNK_SIZE);
@@ -199,21 +445,17 @@ namespace Myriad.ECS.Worlds
 			foreach (var archetypeMatch in archetypes)
 			{
 			    var archetype = archetypeMatch.Archetype;
-				if (archetype.EntityCount == 0)
-					continue;
 
 				count += archetype.EntityCount;
 
 				using var enumerator = archetype.GetChunkEnumerator();
+
                 while (enumerator.MoveNext())
 				{
 					var chunk = enumerator.Current;
 					Debug.Assert(chunk != null);
 
 					var entityCount = chunk.EntityCount;
-					if (entityCount == 0)
-						continue;
-
 					var numBatches = (int)Math.Ceiling(entityCount / (float)batchSize);
 
 					// Inrement work counter for all of the batches we're about to create
@@ -231,7 +473,7 @@ namespace Myriad.ECS.Worlds
 						var start = b * batchSize;
 						var end = Math.Min(start + batchSize, entityCount);
 						var batchCount = end - start;
-						var eMem = chunk.GetEntitiesMemory(start, batchCount);
+						var eMem = chunk.Entities.Slice(start, batchCount);
 
 						var item = new <#= workItemName #>(
 							eMem,
@@ -259,6 +501,7 @@ namespace Myriad.ECS.Worlds
 			return count;
 		}
 
+		<#= CoverageAttribute(i) #>
 		private readonly struct WorkItem<#= i #><TQ, <#= queryConstraints #>>
 			: IWorkItem
 			where <#= Constraints(i, 12) #>
@@ -266,7 +509,7 @@ namespace Myriad.ECS.Worlds
 		{
 			private readonly TQ _q;
 
-			private readonly Memory<Entity> _entities;
+			private readonly ReadOnlyMemory<Entity> _entities;
 <# for (var k = 0; k < i; k++)
 {
 #>
@@ -276,7 +519,7 @@ namespace Myriad.ECS.Worlds
 #>
 
 			public WorkItem<#= i #>(
-				Memory<Entity> entities,
+				ReadOnlyMemory<Entity> entities,
 <# for (var k = 0; k < i; k++)
 {
 #>
@@ -334,6 +577,40 @@ namespace Myriad.ECS.Worlds
 
 
 <#+ 
+	static string CoverageAttribute(int index)
+	{
+		if (index < 2)
+			return "";
+		return "[ExcludeFromCodeCoverage]";
+	}
+
+	static string DocsQueryDescription()
+	{
+		return @"
+		/// <param name=""query"">
+		/// Optional query to filter by. If non-null this <b>must</b> Include all of the component
+		/// types specified in the type signature of this call!
+		/// <br /><br />
+		/// If null a default query will be used, selecting all entities which include the components
+		/// in the type signature.
+		/// </param>
+		";
+	}
+
+	static string DocsRefQueryDescription()
+	{
+		return @"
+		/// <param name=""query"">
+		/// Optional query to filter by. If non-null this <b>must</b> Include all of the component
+		/// types specified in the type signature of this call!
+		/// <br /><br />
+		/// If null a default query will be used, selecting all entities which include the components
+		/// in the type signature. This query object will be written to the query parameter by ref. It
+		/// can be used next frame to slightly speed up query execution.
+		/// </param>
+		";
+	}
+
 	static string Constraints(int count, int spaces = 4)
     {
 		var prefix = new string(' ', spaces);

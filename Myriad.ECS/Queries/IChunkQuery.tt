@@ -13,6 +13,8 @@ using Myriad.ECS.IDs;
 using Myriad.ECS.Threading;
 using Myriad.ECS.Allocations;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedParameter.Global
@@ -26,9 +28,15 @@ using System.Buffers;
 #>
 namespace Myriad.ECS.Queries
 {
+	/// <summary>
+	/// Process entire chunks of entities together.
+	/// </summary>
 	public interface IChunkQuery<<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>
 		where <#= Constraints(i, 8) #>
 	{
+		/// <summary>
+		/// Process a chunk of entities all together. Items for the same entity are at the same index in all spans.
+		/// </summary>
 		public void Execute(ChunkHandle chunk, ReadOnlySpan<Entity> e, <#= Refs(0, i) #>);
 	}
 }
@@ -51,6 +59,8 @@ namespace Myriad.ECS.Worlds
         /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
 		/// query object will automatically be created and written into this field.</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			QueryDescription? query = null
 		)
@@ -75,6 +85,8 @@ namespace Myriad.ECS.Worlds
         /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
 		/// query object will automatically be created and written into this field.</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			ref QueryDescription? query
 		)
@@ -100,6 +112,8 @@ namespace Myriad.ECS.Worlds
 		/// query object will automatically be created and written into this field.</param>
 		/// <param name="q">The TQ instance which will be executed for each chunk</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			TQ q,
 			QueryDescription? query = null
@@ -125,6 +139,8 @@ namespace Myriad.ECS.Worlds
         /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
 		/// query object will automatically be created and written into this field.</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			TQ q,
 			ref QueryDescription? query
@@ -150,6 +166,8 @@ namespace Myriad.ECS.Worlds
         /// <param name="query">A query expressing which entities to execute this query over. If null a default
 		/// query object will be used (based on type parameters).</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			ref TQ q,
 			QueryDescription? query = null
@@ -175,6 +193,7 @@ namespace Myriad.ECS.Worlds
         /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
 		/// query object will automatically be created and written into this field.</param>
         /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
 		public int ExecuteChunk<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			ref TQ q,
 			ref QueryDescription? query
@@ -185,8 +204,6 @@ namespace Myriad.ECS.Worlds
 			query ??= GetCachedQuery<<#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>();
 
 			var archetypes = query.GetArchetypes();
-			if (archetypes.Count == 0)
-				return 0;
 
 <# for (var k = 0; k < sumij; k++)
 {
@@ -200,8 +217,6 @@ namespace Myriad.ECS.Worlds
 			foreach (var archetypeMatch in archetypes)
 			{
 			    var archetype = archetypeMatch.Archetype;
-				if (archetype.EntityCount == 0)
-					continue;
 
 				var chunks = archetype.Chunks;
 				for (var c = chunks.Count - 1; c >= 0; c--)
@@ -209,9 +224,6 @@ namespace Myriad.ECS.Worlds
 					var chunk = chunks[c];
 
 					var entities = chunk.Entities;
-					if (entities.Length == 0)
-						continue;
-
 					count += entities.Length;
 
 <# for (var k = 0; k < sumij; k++)
@@ -222,13 +234,30 @@ namespace Myriad.ECS.Worlds
 }
 #>
 
-					q.Execute(new ChunkHandle(chunk), entities, <#= CallParameters(sumij) #>);
+					q.Execute(new ChunkHandle(chunk), entities.Span, <#= CallParameters(sumij) #>);
 				}
 			}
 
 			return count;
 		}
 
+		/// <summary>
+        /// Execute a query which executes on entire chunks. Executes work in parallel at the chunk
+		/// level.
+        /// </summary>
+        /// <typeparam name="TQ">The type of the query</typeparam>
+<# for (var k = 0; k < sumij; k++)
+{
+#>
+        /// <typeparam name="T<#= k #>">Type of component <#= k #> to retrieve</typeparam>
+<#
+}
+#>
+        /// <param name="q">The TQ instance which will be executed for each chunk</param>
+        /// <param name="query">A query expressing which entities to execute this query over. If null a suitable
+		/// query object will automatically be created and written into this field.</param>
+        /// <returns>The total number of entities processed</returns>
+		<#= CoverageAttribute(i) #>
 		public int ExecuteChunkParallel<TQ, <#= string.Join(", ", Enumerable.Range(0, sumij).Select(x => "T" + x)) #>>(
 			TQ q,
 			QueryDescription? query = null
@@ -279,6 +308,7 @@ namespace Myriad.ECS.Worlds
 			return count;
 		}
 
+		<#= CoverageAttribute(i) #>
 		private readonly struct ChunkWorkItem<#= i #><TQ, <#= queryConstraints #>>
 			: IWorkItem
 			where <#= Constraints(i, 12) #>
@@ -296,7 +326,7 @@ namespace Myriad.ECS.Worlds
 			public void Execute()
 			{
 				_q.Execute(
-					new ChunkHandle(_chunk), _chunk.Entities
+					new ChunkHandle(_chunk), _chunk.Entities.Span
 <# for (var k = 0; k < i; k++)
 {
 #>
@@ -316,6 +346,13 @@ namespace Myriad.ECS.Worlds
 
 
 <#+ 
+	static string CoverageAttribute(int index)
+	{
+		if (index < 2)
+			return "";
+		return "[ExcludeFromCodeCoverage]";
+	}
+
 	static string Constraints(int count, int spaces = 4)
     {
         var prefix = new string(' ', spaces);

@@ -1,5 +1,4 @@
-﻿using Myriad.ECS.Command;
-using Myriad.ECS.Queries;
+﻿using Myriad.ECS.Queries;
 using Myriad.ECS.Worlds;
 
 namespace Myriad.ECS.Tests.Queries;
@@ -7,35 +6,16 @@ namespace Myriad.ECS.Tests.Queries;
 [TestClass]
 public class ParallelQueryTests
 {
-    private void SetupRandomEntities(World world)
+    private static void SetupRandomEntities(World world, int count = 1_000_000)
     {
-        var b = new CommandBuffer(world);
-        var r = new Random(3452);
-        for (var i = 0; i < 1_000_000; i++)
-        {
-            var eb = b.Create();
-
-            for (var j = 0; j < 5; j++)
-            {
-                switch (r.Next(0, 5))
-                {
-                    case 0: eb.Set(new ComponentByte(0), true); break;
-                    case 1: eb.Set(new ComponentInt16(0), true); break;
-                    case 2: eb.Set(new ComponentFloat(0), true); break;
-                    case 3: eb.Set(new ComponentInt32(0), true); break;
-                    case 4: eb.Set(new ComponentInt64(0), true); break;
-                }
-            }
-        }
-
-        b.Playback().Dispose();
+        TestHelpers.SetupRandomEntities(world, 5, count).Playback().Dispose();
     }
 
     [TestMethod]
     public void IncrementValues()
     {
         var w = new WorldBuilder().Build();
-        SetupRandomEntities(w);
+        SetupRandomEntities(w, count:100_000);
 
         // Increment just the int32s
         for (var i = 0; i < 128; i++)
@@ -54,6 +34,18 @@ public class ParallelQueryTests
         foreach (var item in w.Query<ComponentInt32>())
             Assert.AreEqual(128, item.Item0.Value);
 
+        // check they're 128 in a different way
+        w.Query((Entity _, ref ComponentInt32 c) => Assert.AreEqual(128, c.Value));
+        w.QueryParallel((Entity _, ref ComponentInt32 c) => Assert.AreEqual(128, c.Value));
+
+        // check they're 128 in a different way
+        w.Query(128, (int data, Entity _, ref ComponentInt32 c) => Assert.AreEqual(data, c.Value));
+        w.QueryParallel(128, (int data, Entity _, ref ComponentInt32 c) => Assert.AreEqual(data, c.Value));
+
+        // check they're 128 in a different way
+        w.Query(128, (int data, ref ComponentInt32 c) => Assert.AreEqual(data, c.Value));
+        w.QueryParallel(128, (int data, ref ComponentInt32 c) => Assert.AreEqual(data, c.Value));
+
         // Check everything else is 0
         foreach (var (_, v) in w.Query<ComponentByte>())
             Assert.AreEqual(0, v.Ref.Value);
@@ -69,7 +61,7 @@ public class ParallelQueryTests
     public void ChunkIncrementValues()
     {
         var w = new WorldBuilder().Build();
-        SetupRandomEntities(w);
+        SetupRandomEntities(w, count:150_000);
 
         // Increment just the int32s
         for (var i = 0; i < 128; i++)
@@ -78,6 +70,10 @@ public class ParallelQueryTests
         // check they're 128
         foreach (var (_, v) in w.Query<ComponentInt32>())
             Assert.AreEqual(128, v.Ref.Value);
+
+        // check they're 128 in a different way
+        foreach (var e in w.Query(new QueryBuilder().Include<ComponentInt32>().Build(w)))
+            Assert.AreEqual(128, e.GetComponentRef<ComponentInt32>().Value);
 
         // Check everything else is 0
         foreach (var (_, v) in w.Query<ComponentByte>())
@@ -94,7 +90,7 @@ public class ParallelQueryTests
     public void ChunkExceptions()
     {
         var w = new WorldBuilder().Build();
-        SetupRandomEntities(w);
+        SetupRandomEntities(w, 10_000);
 
         // Increment just the int32s
         Assert.ThrowsException<AggregateException>(() =>

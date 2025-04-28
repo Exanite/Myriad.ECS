@@ -1,5 +1,6 @@
 ﻿using Myriad.ECS.Command;
 using Myriad.ECS.Components;
+using Myriad.ECS.IDs;
 using Myriad.ECS.Worlds;
 
 namespace Myriad.ECS.Tests;
@@ -222,5 +223,122 @@ public class PhantomTests
         Assert.IsTrue(e.Exists());
         Assert.IsTrue(e.IsPhantom());
         Assert.IsTrue(e.HasComponent<ComponentFloat>());
+    }
+
+    [TestMethod]
+    public void SimultaneousRemoveAndDelete()
+    {
+        var w = new WorldBuilder().Build();
+
+        // Create an entity with a phantom component
+        var cmd = new CommandBuffer(w);
+        var eb = cmd.Create().Set(new ComponentFloat(42)).Set(new TestPhantom0());
+        var resolver = cmd.Playback();
+        var e = eb.Resolve();
+        resolver.Dispose();
+
+        // Delete entity and remove phantom in one go
+        cmd.Remove<TestPhantom0>(e);
+        cmd.Delete(e);
+        cmd.Playback().Dispose();
+
+        Assert.IsFalse(e.IsAlive());
+        Assert.IsFalse(e.Exists());
+        Assert.IsFalse(e.IsPhantom());
+    }
+
+    [TestMethod]
+    public void PhantomNotification()
+    {
+        var w = new WorldBuilder().Build();
+
+        Assert.IsTrue(ComponentID<PhantomNotifier>.ID.IsPhantomNotifierComponent);
+        Assert.IsFalse(ComponentID<PhantomNotifier>.ID.IsPhantomComponent);
+
+        // Create an entity with a phantom component
+        var list = new List<EntityId>();
+        var cmd = new CommandBuffer(w);
+        var eb = cmd.Create().Set(new TestPhantom0()).Set(new TestPhantom1()).Set(new PhantomNotifier { CalledWith = list });
+        var resolver = cmd.Playback();
+        var e = eb.Resolve();
+        resolver.Dispose();
+
+        // Is the entity valid
+        Assert.IsTrue(e.Exists());
+        Assert.IsFalse(e.IsPhantom());
+        Assert.AreEqual(0, list.Count);
+
+        // Triggering a migration, without becoming a phantom
+        cmd.Set(e, new ComponentInt32());
+        cmd.Playback().Dispose();
+
+        // Is the entity valid and non-notified
+        Assert.IsTrue(e.Exists());
+        Assert.IsTrue(e.IsAlive());
+        Assert.AreEqual(0, list.Count);
+
+        // Delete it
+        cmd.Delete(e);
+        cmd.Playback().Dispose();
+
+        // Is the entity valid but no longer alive
+        Assert.IsTrue(e.Exists());
+        Assert.IsTrue(e.IsPhantom());
+        Assert.AreEqual(1, list.Count);
+        Assert.AreEqual(e.ID, list.Single());
+
+        // Remove a component, triggering a migration
+        cmd.Remove<TestPhantom1>(e);
+        cmd.Playback().Dispose();
+
+        // Check that it did not receive a second notification
+        Assert.IsTrue(e.Exists());
+        Assert.IsTrue(e.IsPhantom());
+        Assert.AreEqual(1, list.Count);
+        Assert.AreEqual(e.ID, list.Single());
+
+        // Delete it again
+        cmd.Delete(e);
+        cmd.Playback().Dispose();
+
+        // Entity should no longer exist at all
+        Assert.IsFalse(e.Exists());
+        Assert.AreEqual(1, list.Count);
+        Assert.AreEqual(e.ID, list.Single());
+    }
+
+    [TestMethod]
+    public void NoNotification()
+    {
+        var w = new WorldBuilder().Build();
+
+        Assert.IsTrue(ComponentID<PhantomNotifier>.ID.IsPhantomNotifierComponent);
+        Assert.IsFalse(ComponentID<PhantomNotifier>.ID.IsPhantomComponent);
+
+        // Create an entity **without** a phantom component
+        var list = new List<EntityId>();
+        var cmd = new CommandBuffer(w);
+        var eb = cmd.Create().Set(new ComponentInt32()).Set(new PhantomNotifier { CalledWith = list });
+        var resolver = cmd.Playback();
+        var e = eb.Resolve();
+        resolver.Dispose();
+
+        // Is the entity valid
+        Assert.IsTrue(e.Exists());
+        Assert.IsFalse(e.IsPhantom());
+        Assert.AreEqual(0, list.Count);
+
+        // Delete it
+        cmd.Delete(e);
+        cmd.Playback().Dispose();
+
+        // Is the entity dead
+        Assert.IsFalse(e.Exists());
+        Assert.IsFalse(e.IsPhantom());
+        Assert.AreEqual(0, list.Count);
+
+        // Delete it again
+        cmd.Delete(e);
+        cmd.Playback().Dispose();
     }
 }

@@ -11,18 +11,37 @@ namespace Myriad.ECS.Queries;
 /// </summary>
 public sealed partial class QueryBuilder
 {
+    internal static readonly FrozenOrderedListSet<ComponentID> SetWithJustPhantom = FrozenOrderedListSet<ComponentID>.Create(
+        new[] { ComponentID<Phantom>.ID }
+    );
+
     private readonly ComponentSet _include;
-    public IEnumerable<ComponentID> Included => _include.Items;
+    /// <summary>
+    /// An Entity must include all of these components to be matched by this query
+    /// </summary>
+    public IReadOnlyList<ComponentID> Included => _include.Items;
 
     private readonly ComponentSet _exclude;
-    public IEnumerable<ComponentID> Excluded => _exclude.Items;
+    /// <summary>
+    /// Entities with these components will not be matched by this query
+    /// </summary>
+    public IReadOnlyList<ComponentID> Excluded => _exclude.Items;
 
     private readonly ComponentSet _atLeastOne;
-    public IEnumerable<ComponentID> AtLeastOnes => _atLeastOne.Items;
+    /// <summary>
+    /// At least one of all these components must be on an Entity for it to be matched by this query
+    /// </summary>
+    public IReadOnlyList<ComponentID> AtLeastOnes => _atLeastOne.Items;
 
     private readonly ComponentSet _exactlyOne;
-    public IEnumerable<ComponentID> ExactlyOnes => _exactlyOne.Items;
+    /// <summary>
+    /// Exactly one of all these components must be on an Entity for it to be matched by this query
+    /// </summary>
+    public IReadOnlyList<ComponentID> ExactlyOnes => _exactlyOne.Items;
 
+    /// <summary>
+    /// Create a new <see cref="QueryBuilder"/>
+    /// </summary>
     public QueryBuilder()
     {
         _include = new(ContainsComponent, 0);
@@ -38,6 +57,14 @@ public sealed partial class QueryBuilder
     /// <returns></returns>
     public QueryDescription Build(World world)
     {
+        // In the special case when it's only an include query try to get an item from the cache
+        if (_exclude.Items.Count == 0 && _atLeastOne.Items.Count == 0 && _exactlyOne.Items.Count == 0)
+        {
+            var cached = world.TryGetCachedQuery(_include.Items);
+            if (cached != null)
+                return cached;
+        }
+
         // Automatically exclude all Phantom entities, unless specifically requested.
         if (!_include.Contains(ComponentID<Phantom>.ID))
             Exclude<Phantom>();
@@ -165,17 +192,30 @@ public sealed partial class QueryBuilder
         return this;
     }
 
+    /// <summary>
+    /// Check if the given component is excluded
+    /// </summary>
+    /// <param name="type"></param>
+    /// <returns></returns>
     public bool IsExcluded(Type type)
     {
         return _exclude.Contains(type);
     }
 
+    /// <summary>
+    /// Check if the given component is excluded
+    /// </summary>
+    /// <returns></returns>
     public bool IsExcluded<T>()
         where T : IComponent
     {
         return _exclude.Contains<T>();
     }
 
+    /// <summary>
+    /// Check if the given component is excluded
+    /// </summary>
+    /// <returns></returns>
     public bool IsExcluded(ComponentID id)
     {
         return _exclude.Contains(id);
@@ -217,17 +257,29 @@ public sealed partial class QueryBuilder
         return this;
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which entities must have at least one of
+    /// </summary>
+    /// <returns></returns>
     public bool IsAtLeastOneOf(Type type)
     {
         return _atLeastOne.Contains(type);
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which entities must have at least one of
+    /// </summary>
+    /// <returns></returns>
     public bool IsAtLeastOneOf<T>()
         where T : IComponent
     {
         return _atLeastOne.Contains<T>();
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which entities must have at least one of
+    /// </summary>
+    /// <returns></returns>
     public bool IsAtLeastOneOf(ComponentID id)
     {
         return _atLeastOne.Contains(id);
@@ -269,17 +321,29 @@ public sealed partial class QueryBuilder
         return this;
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which entities must have exactly one of
+    /// </summary>
+    /// <returns></returns>
     public bool IsExactlyOneOf(Type type)
     {
         return _exactlyOne.Contains(type);
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which entities must have exactly one of
+    /// </summary>
+    /// <returns></returns>
     public bool IsExactlyOneOf<T>()
         where T : IComponent
     {
         return _exactlyOne.Contains<T>();
     }
 
+    /// <summary>
+    /// Check if the given component is one of the components which entities must have exactly one of
+    /// </summary>
+    /// <returns></returns>
     public bool IsExactlyOneOf(ComponentID id)
     {
         return _exactlyOne.Contains(id);
@@ -290,8 +354,7 @@ public sealed partial class QueryBuilder
     {
         public int Index { get; } = Index;
 
-        private readonly HashSet<ComponentID> _items = [];
-        public IEnumerable<ComponentID> Items => _items;
+        public readonly OrderedListSet<ComponentID> Items = [ ];
 
         private FrozenOrderedListSet<ComponentID>? _frozenCache;
 
@@ -300,14 +363,24 @@ public sealed partial class QueryBuilder
             if (_frozenCache != null)
                 return _frozenCache;
 
-            _frozenCache = new FrozenOrderedListSet<ComponentID>(_items);
-            return _frozenCache;
+            switch (Items.Count)
+            {
+                case 0:
+                    return FrozenOrderedListSet<ComponentID>.Empty;
+
+                case 1 when Items.Contains(ComponentID<Phantom>.ID):
+                    return SetWithJustPhantom;
+
+                default:
+                    _frozenCache = FrozenOrderedListSet<ComponentID>.Create(Items);
+                    return _frozenCache;
+            }
         }
 
         public bool Add(ComponentID id, [CallerMemberName] string caller = "")
         {
             check(id, Index, caller);
-            if (_items.Add(id))
+            if (Items.Add(id))
             {
                 _frozenCache = null;
                 return true;
@@ -329,7 +402,7 @@ public sealed partial class QueryBuilder
 
         public bool Contains(ComponentID id)
         {
-            return _items.Contains(id);
+            return Items.Contains(id);
         }
 
         public bool Contains(Type type)

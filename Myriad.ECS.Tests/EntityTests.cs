@@ -53,6 +53,8 @@ public class EntityTests
         Assert.AreNotEqual(c1, c2);
         Assert.AreNotEqual(0, c1);
         Assert.AreNotEqual(0, c2);
+
+        Assert.AreNotEqual(entity1.ToString(), entity2.ToString());
     }
 
     [TestMethod]
@@ -86,6 +88,54 @@ public class EntityTests
 
         ref var c = ref entity.GetComponentRef<ComponentInt16>();
         Assert.AreEqual(7, c.Value);
+    }
+
+    [TestMethod]
+    public void GetComponents()
+    {
+        var w = new WorldBuilder().Build();
+        var b = new CommandBuffer(w);
+
+        var e = b.Create().Set(new ComponentInt16(7));
+        using var resolver = b.Playback();
+        var entity = e.Resolve();
+
+        Assert.AreEqual(1, entity.ComponentTypes.Count);
+        Assert.IsTrue(entity.ComponentTypes.Contains(ComponentID<ComponentInt16>.ID));
+    }
+
+    [TestMethod]
+    public void GetComponentDead()
+    {
+        var w = new WorldBuilder().Build();
+        var b = new CommandBuffer(w);
+
+        var e = b.Create().Set(new ComponentInt16(7));
+        var resolver = b.Playback();
+        var entity = e.Resolve();
+        resolver.Dispose();
+
+        b.Delete(entity);
+        b.Playback().Dispose();
+
+        Assert.ThrowsException<ArgumentException>(() =>
+        {
+            var c = entity.ComponentTypes.Count;
+        });
+    }
+
+    [TestMethod]
+    public void GetBoxedComponents()
+    {
+        var w = new WorldBuilder().Build();
+        var b = new CommandBuffer(w);
+
+        var e = b.Create().Set(new ComponentInt16(7));
+        using var resolver = b.Playback();
+        var entity = e.Resolve();
+
+        Assert.AreEqual(1, entity.BoxedComponents.Length);
+        Assert.AreEqual(new ComponentInt16(7), (ComponentInt16)entity.BoxedComponents[0]);
     }
 
     [TestMethod]

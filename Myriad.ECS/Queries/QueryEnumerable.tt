@@ -12,6 +12,7 @@ using Myriad.ECS.Queries;
 using Myriad.ECS.IDs;
 using Myriad.ECS.Collections;
 using Myriad.ECS.Worlds.Chunks;
+using System.Diagnostics.CodeAnalysis;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedParameter.Global
@@ -19,6 +20,7 @@ using Myriad.ECS.Worlds.Chunks;
 // ReSharper disable CheckNamespace
 // ReSharper disable ArrangeAccessorOwnerBody
 #pragma warning disable CA1822 // Mark members as static
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 <# for (var i = 0; i <= PARAM_COUNT; i++)
 {
@@ -41,6 +43,7 @@ using Myriad.ECS.Worlds.Chunks;
 
 namespace Myriad.ECS.Queries
 {
+    <#= CoverageAttribute(i) #>
     public readonly struct QueryResultEnumerable<#= i #><#= tparams #>
         <#= Constraints(i, 8) #>
     {
@@ -59,6 +62,7 @@ namespace Myriad.ECS.Queries
         }
     }
 
+    <#= CoverageAttribute(i) #>
     public ref struct QueryResultEnumerator<#= i #><#= tparams #>
         <#= Constraints(i, 8) #>
     {
@@ -135,7 +139,7 @@ for (var k = 0; k < i; k++)
         {
             var chunk = _chunksEnumerator.Current!;
 
-            SpanEntities = chunk.Entities;
+            SpanEntities = chunk.Entities.Span;
 <# for (var k = 0; k < i; k++)
 {
 #>
@@ -215,12 +219,14 @@ namespace Myriad.ECS.Worlds
 else
 {
 #>
+        <#= CoverageAttribute(i) #>
         public QueryResultEnumerable<#= i #><#= tparams #> Query<#= tparams #>(QueryDescription? query = null)
             <#= Constraints(i, 12) #>
         {
             return Query<#= tparams #>(ref query);
         }
 
+        <#= CoverageAttribute(i) #>
         public QueryResultEnumerable<#= i #><#= tparams #> Query<#= tparams #>(ref QueryDescription? query)
             <#= Constraints(i, 12) #>
         {
@@ -242,6 +248,13 @@ else
 #>
 
 <#+ 
+    static string CoverageAttribute(int index)
+	{
+		if (index < 2)
+			return "";
+		return "[ExcludeFromCodeCoverage]";
+	}
+
     static string Constraints(int count, int spaces = 4)
     {
         if (count == 0)

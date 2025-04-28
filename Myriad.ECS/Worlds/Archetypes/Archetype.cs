@@ -1,4 +1,5 @@
-﻿using Myriad.ECS.Collections;
+﻿using System.Diagnostics;
+using Myriad.ECS.Collections;
 using Myriad.ECS.Command;
 using Myriad.ECS.Components;
 using Myriad.ECS.IDs;
@@ -6,6 +7,9 @@ using Myriad.ECS.Worlds.Chunks;
 
 namespace Myriad.ECS.Worlds.Archetypes;
 
+/// <summary>
+/// An archetype contains all entities which share exactly the same set of components.
+/// </summary>
 public sealed partial class Archetype
 {
     /// <summary>
@@ -27,6 +31,11 @@ public sealed partial class Archetype
     /// The components of entities in this archetype
     /// </summary>
     public FrozenOrderedListSet<ComponentID> Components { get; }
+
+    /// <summary>
+    /// A bloom filter of all the components in this archetype
+    /// </summary>
+    internal readonly ComponentBloomFilter ComponentsBloomFilter;
 
     /// <summary>
     /// The hash of all components IDs in this archetype
@@ -56,6 +65,12 @@ public sealed partial class Archetype
     private readonly ComponentID[] _componentIDs;
     private readonly Type[] _componentTypes;
     private readonly ArchetypeComponentDisposal? _disposer;
+    private readonly ArchetypePhantomComponentNotifier? _phantomNotifier;
+
+    /// <summary>
+    /// The archetype that entities should be moved to when deleted. Only non-null if <code>HasPhantomComponents &amp; !IsPhantom</code>
+    /// </summary>
+    private readonly Archetype? _phantomDestination;
 
     /// <summary>
     /// The total number of entities in this archetype
@@ -73,19 +88,25 @@ public sealed partial class Archetype
     public bool IsPhantom { get; }
 
     /// <summary>
-    /// Indicates if ant of the components in this Archetype im[lement <see cref="IEntityRelationComponent"/>
+    /// Indicates if any of the components in this Archetype im[lement <see cref="IEntityRelationComponent"/>
     /// </summary>
     public bool HasRelationComponents { get; }
 
     /// <summary>
-    /// Indicates if ant of the components in this Archetype im[lement <see cref="IDisposableComponent"/>
+    /// Indicates if any of the components in this Archetype im[lement <see cref="IDisposableComponent"/>
     /// </summary>
     public bool HasDisposableComponents { get; }
+
+    /// <summary>
+    /// Indicates if any of the components in this Archetype im[lement <see cref="IPhantomNotifierComponent"/>
+    /// </summary>
+    public bool HasPhantomNotifierComponents { get; }
 
     internal Archetype(World world, FrozenOrderedListSet<ComponentID> components)
     {
         World = world;
         Components = components;
+        ComponentsBloomFilter = components.ToBloomFilter();
 
         // Create arrays to fills in below
         _componentTypes = new Type[components.Count];
@@ -120,32 +141,102 @@ public sealed partial class Archetype
             HasPhantomComponents |= component.IsPhantomComponent;
             HasRelationComponents |= component.IsRelationComponent;
             HasDisposableComponents |= component.IsDisposableComponent;
+            HasPhantomNotifierComponents |= component.IsPhantomNotifierComponent;
         }
 
         // Create a disposer if it's needed
         if (HasDisposableComponents)
             _disposer = new ArchetypeComponentDisposal(components);
+
+        // Create a notifier if it's needed
+        if (HasPhantomNotifierComponents && !IsPhantom)
+            _phantomNotifier = new ArchetypePhantomComponentNotifier(components);
+
+        // Get the destination archetype for deleted entities, if they become phantoms
+        if (HasPhantomComponents && !IsPhantom)
+        {
+            var c = new OrderedListSet<ComponentID>(components)
+            {
+                ComponentID<Phantom>.ID
+            };
+            _phantomDestination = World.GetOrCreateArchetype(c);
+        }
     }
 
     internal void Dispose(ref LazyCommandBuffer buffer)
     {
-        if (_disposer == null)
-            return;
-
-        foreach (var chunk in _chunks)
-            for (var i = 0; i < chunk.EntityCount; i++)
-                _disposer.DisposeEntity(ref buffer, chunk, i);
+        DisposeAllDisposableComponents(ref buffer);
     }
 
-    internal (EntityId entity, Row slot) CreateEntity()
+    private void DisposeAllDisposableComponents(ref LazyCommandBuffer buffer)
+    {
+        if (_disposer != null)
+            foreach (var chunk in _chunks)
+                for (var i = 0; i < chunk.EntityCount; i++)
+                    _disposer.DisposeEntity(ref buffer, chunk, i);
+    }
+
+    internal Row CreateEntity()
     {
         // Allocate an entity in the world
         ref var info = ref World.AllocateEntity(out var entity);
 
         // Add it to this archetype, find a row to put components into
-        var row = AddEntity(entity, ref info);
+        return AddEntity(entity, ref info);
+    }
 
-        return (entity, row);
+    /// <summary>
+    /// Delete every Entity in this archetype
+    /// </summary>
+    /// <param name="lazy"></param>
+    /// <exception cref="NotImplementedException"></exception>
+    internal void Clear(ref LazyCommandBuffer lazy)
+    {
+        if (HasPhantomComponents && !IsPhantom)
+        {
+            Debug.Assert(_phantomDestination != null);
+
+            // Migrate all entities in all chunks to the new archetype. Doing this does all of the bookeeping like chunk management and entity count.
+            // This could be better, at the moment it just does the work on a per-entity basis, instead of doing it all in one batch.
+            while (_chunks.Count > 0)
+            {
+                var chunk = _chunks[^1];
+
+                while (chunk.EntityCount > 0)
+                {
+                    var entity = chunk.Entities.Span[^1].ID;
+                    ref var info = ref World.GetEntityInfo(entity);
+
+                    MigrateTo(entity, ref info, _phantomDestination, ref lazy);
+                }
+            }
+        }
+        else
+        {
+            // Dispose all disposables on any entity in this archetype
+            if (HasDisposableComponents)
+                DisposeAllDisposableComponents(ref lazy);
+
+            // Clear all the chunks
+            foreach (var chunk in _chunks)
+                chunk.Clear();
+
+            // Move some chunks to hot spares and then delete the rest
+            foreach (var chunk in _chunks)
+            {
+                if (_spareChunks.Count < CHUNK_HOT_SPARES)
+                    _spareChunks.Push(chunk);
+                else
+                    break;
+            }
+            _chunksWithSpace.Clear();
+            _chunks.Clear();
+
+            // Done! No entities left.
+            EntityCount = 0;
+        }
+
+        Debug.Assert(EntityCount == 0);
     }
 
     /// <summary>
@@ -178,13 +269,11 @@ public sealed partial class Archetype
     internal void RemoveEntity(EntityInfo info, ref LazyCommandBuffer lazy)
     {
         // Run disposal for all IDisposableComponent components
-        _disposer?.DisposeEntity(ref lazy, info);
+        if (HasDisposableComponents)
+            _disposer?.DisposeEntity(ref lazy, info);
 
         // Remove the entity from the chunk, component data is lost after this point
         info.Chunk.RemoveEntity(info);
-
-        // Decrease archetype entity count
-        EntityCount--;
 
         // Execute handler for when an entity is removed from a chunk
         HandleChunkEntityRemoved(info.Chunk);
@@ -199,11 +288,13 @@ public sealed partial class Archetype
         // Handle disposable components which are being removed
         _disposer?.DisposeRemoved(ref lazy, info, to.Components);
 
+        // Inform entity it is becoming a phantom
+        if (to.IsPhantom)
+            _phantomNotifier?.Notify(entity, info);
+
+        // Do the actual copying
         var chunk = info.Chunk;
         var row = chunk.MigrateTo(entity, ref info, to);
-
-        // Decrease archetype entity count
-        EntityCount--;
 
         // Execute handler for when an entity is removed from a chunk
         HandleChunkEntityRemoved(chunk);
@@ -213,6 +304,9 @@ public sealed partial class Archetype
 
     private void HandleChunkEntityRemoved(Chunk chunk)
     {
+        // Decrease archetype entity count
+        EntityCount--;
+
         switch (chunk.EntityCount)
         {
             // If the chunk is empty remove it from this archetype entirely
@@ -220,7 +314,7 @@ public sealed partial class Archetype
             {
                 _chunksWithSpace.Remove(chunk);
                 _chunks.Remove(chunk);
-                if (_spareChunks.Count < 4)
+                if (_spareChunks.Count < CHUNK_HOT_SPARES)
                     _spareChunks.Push(chunk);
                 break;
             }
@@ -232,6 +326,7 @@ public sealed partial class Archetype
         }
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         return Hash.GetHashCode();
@@ -251,5 +346,13 @@ public sealed partial class Archetype
         return Components.SetEquals(query);
     }
 
-    public ArchetypeEntityEnumerable Entities => new ArchetypeEntityEnumerable(this);
+    internal bool SetEquals<TV>(Dictionary<ComponentID, TV> query)
+    {
+        return Components.SetEquals(query);
+    }
+
+    /// <summary>
+    /// Get an enumerable of all entities in this <see cref="Archetype"/>, in an arbitrary order.
+    /// </summary>
+    public ArchetypeEntityEnumerable Entities => new(this);
 }

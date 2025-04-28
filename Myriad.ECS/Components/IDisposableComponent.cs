@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Myriad.ECS.Command;
 using Myriad.ECS.IDs;
@@ -18,6 +19,38 @@ public interface IDisposableComponent
     /// </summary>
     /// <param name="buffer">May be used to enqueue more work as a result of this disposal</param>
     public void Dispose(ref LazyCommandBuffer buffer);
+}
+
+/// <summary>
+/// A basic container for disposable objects which will automatically be disposed when the entity is destroyed
+/// </summary>
+/// <typeparam name="TDisposable">The generic type of the thing being disposed</typeparam>
+/// <typeparam name="TTag">A "tag" which means you can use multiple of this component, each with distinct types</typeparam>
+[ExcludeFromCodeCoverage]
+public struct GenericDisposable<TDisposable, TTag>
+    : IDisposableComponent
+    where TDisposable : IDisposable
+{
+    /// <summary>
+    /// The object that will be disposed
+    /// </summary>
+    public TDisposable? IDisposable;
+
+    /// <summary>
+    /// Create a new <see cref="GenericDisposable{TDisposable, TTag}"/> component
+    /// </summary>
+    /// <param name="disposable"></param>
+    public GenericDisposable(TDisposable disposable)
+    {
+        IDisposable = disposable;
+    }
+
+    /// <inheritdoc />
+    public void Dispose(ref LazyCommandBuffer buffer)
+    {
+        IDisposable?.Dispose();
+        IDisposable = default;
+    }
 }
 
 internal static class Disposer
@@ -98,6 +131,7 @@ internal static class Disposer<T>
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private class EmptyImpl
         : IDisposer
     {

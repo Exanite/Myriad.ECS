@@ -35,12 +35,23 @@ public record struct TestPhantom0 : IPhantomComponent;
 public record struct TestPhantom1 : IPhantomComponent;
 public record struct TestPhantom2 : IPhantomComponent;
 
+public record struct PhantomNotifier : IPhantomNotifierComponent
+{
+    public required List<EntityId> CalledWith;
+
+    public void OnBecomePhantom(EntityId self)
+    {
+        CalledWith.Add(self);
+    }
+}
+
 public record struct Relational1(Entity Target) : IEntityRelationComponent;
 public record struct Relational2(Entity Target, int x) : IEntityRelationComponent;
 public record struct Relational3(Entity Target, float y) : IEntityRelationComponent;
 
 public class BoxedInt
 {
+    public string? ID;
     public int Value;
 }
 

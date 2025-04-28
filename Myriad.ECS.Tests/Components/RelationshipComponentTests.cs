@@ -1,4 +1,5 @@
 ﻿using Myriad.ECS.Command;
+using Myriad.ECS.Components;
 using Myriad.ECS.IDs;
 using Myriad.ECS.Worlds;
 
@@ -7,11 +8,57 @@ namespace Myriad.ECS.Tests.Components;
 [TestClass]
 public class RelationshipComponentTests
 {
+    private static Entity CreateEntity(World world)
+    {
+        var cmd = new CommandBuffer(world);
+
+        var buffered = cmd.Create();
+        using var resolver = cmd.Playback();
+
+        return buffered.Resolve();
+    }
+
     [TestMethod]
     public void ComponentIdFlag()
     {
         Assert.IsFalse(ComponentID<ComponentInt32>.ID.IsRelationComponent);
         Assert.IsTrue(ComponentID<Relational1>.ID.IsRelationComponent);
+    }
+
+    [TestMethod]
+    public void BindBufferedMixup()
+    {
+        var world = new WorldBuilder().Build();
+        var buffer1 = new CommandBuffer(world);
+        var buffer2 = new CommandBuffer(world);
+
+        // Create entity in buffer 1
+        var ab = buffer1.Create().Set(new ComponentInt32(17));
+
+        // Try to bind a relation in buffer 2
+        Assert.ThrowsException<ArgumentException>(() =>
+        {
+            buffer2.Create().Set(new Relational1(), ab);
+        });
+    }
+
+    [TestMethod]
+    public void BindBufferedMixup2()
+    {
+        var world = new WorldBuilder().Build();
+        var buffer1 = new CommandBuffer(world);
+        var buffer2 = new CommandBuffer(world);
+
+        var entity = CreateEntity(world);
+
+        // Create a buffered entity in cmd buffer 1
+        var b1 = buffer1.Create();
+
+        // Bind a relationship in buffer 2
+        Assert.ThrowsException<ArgumentException>(() =>
+        {
+            buffer2.Set(entity, new Relational1(), b1);
+        });
     }
 
     [TestMethod]
@@ -98,5 +145,54 @@ public class RelationshipComponentTests
 
         Assert.AreEqual(b, a.GetComponentRef<Relational1>().Target);
         Assert.AreEqual(a, b.GetComponentRef<Relational1>().Target);
+    }
+
+    [TestMethod]
+    public void BindSelfReference()
+    {
+        var world = new WorldBuilder().Build();
+        var buffer = new CommandBuffer(world);
+
+        var eb = buffer.Create();
+        eb.Set(new SelfReference());
+
+        using var _ = buffer.Playback();
+
+        var e = eb.Resolve();
+
+        Assert.AreEqual(e, e.GetComponentRef<SelfReference>().Target);
+    }
+
+    [TestMethod]
+    public void BindSelfReferenceToOtherBuffered()
+    {
+        var world = new WorldBuilder().Build();
+        var buffer = new CommandBuffer(world);
+
+        var eb1 = buffer.Create();
+        var eb2 = buffer.Create();
+
+        Assert.ThrowsException<InvalidOperationException>(() =>
+        {
+            eb1.Set(new SelfReference(), eb2);
+        });
+    }
+
+    [TestMethod]
+    public void BindSelfReferenceToOther()
+    {
+        var world = new WorldBuilder().Build();
+        var buffer = new CommandBuffer(world);
+
+        var eb1 = buffer.Create();
+        using var _ = buffer.Playback();
+        var e1 = eb1.Resolve();
+
+        var eb2 = buffer.Create();
+
+        Assert.ThrowsException<InvalidOperationException>(() =>
+        {
+            eb2.Set(new SelfReference(), e1);
+        });
     }
 }
