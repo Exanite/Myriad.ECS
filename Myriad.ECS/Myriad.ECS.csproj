@@ -18,12 +18,12 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="JetBrains.dotCover.MSBuild" Version="1.0.5-alpha">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
+  <!-- <ItemGroup>-->
+  <!--   <PackageReference Include="JetBrains.dotCover.MSBuild" Version="1.0.5-alpha">-->
+  <!--     <PrivateAssets>all</PrivateAssets>-->
+  <!--     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>-->
+  <!--   </PackageReference>-->
+  <!-- </ItemGroup>-->
 
   <ItemGroup>
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
