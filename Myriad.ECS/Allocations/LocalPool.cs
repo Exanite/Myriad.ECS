@@ -29,7 +29,7 @@ public readonly struct LocalPool<T>
     }
 
     /// <summary>
-    /// Get al item from this pool, fetches from the global pool if none are available
+    /// Get an item from this pool, fetches from the global pool if none are available
     /// </summary>
     /// <returns></returns>
     public T Get()

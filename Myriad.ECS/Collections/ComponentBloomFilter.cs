@@ -6,7 +6,7 @@ using Myriad.ECS.xxHash;
 namespace Myriad.ECS.Collections;
 
 /// <summary>
-/// Probabalistic set of component IDs. Can be used to check if two sets intersect.<br />
+/// Probabilistic set of component IDs. Can be used to check if two sets intersect.<br />
 ///
 /// False positives are possible (i.e. If Intersects returns true, then there <b>might</b> be an overlap).<br />
 /// False negatives are <b>not</b> possible (i.e. If Intersects return false, then there <b>definitely</b> is no overlap).<br />
