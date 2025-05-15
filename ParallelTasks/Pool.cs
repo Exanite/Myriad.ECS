@@ -11,7 +11,7 @@ internal class Pool<T>
 {
     public static Pool<T> Instance { get; } = new();
 
-    private readonly ConcurrentBag<T> _bag = [];
+    private readonly ConcurrentBag<T> bag = [];
 
     private Pool()
     {
@@ -23,8 +23,11 @@ internal class Pool<T>
     /// <returns>An instance of <typeparamref name="T"/>.</returns>
     public T Get()
     {
-        if (_bag.TryTake(out var item))
+        if (bag.TryTake(out var item))
+        {
             return item;
+        }
+
         return new T();
     }
 
@@ -35,6 +38,6 @@ internal class Pool<T>
     /// <param name="instance">The instance to return to the pool.</param>
     public void Return(T instance)
     {
-        _bag.Add(instance);
+        bag.Add(instance);
     }
 }

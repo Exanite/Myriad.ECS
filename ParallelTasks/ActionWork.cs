@@ -3,7 +3,7 @@
 internal class ActionWork
     : IWork
 {
-    private static readonly Pool<ActionWork> instances = Pool<ActionWork>.Instance;
+    private static readonly Pool<ActionWork> Instances = Pool<ActionWork>.Instance;
 
     public Action? Action { get; set; }
     public WorkOptions Options { get; set; }
@@ -13,11 +13,11 @@ internal class ActionWork
         Action?.Invoke();
         Action = null;
 
-        instances.Return(this);
+        Instances.Return(this);
     }
 
     internal static ActionWork GetInstance()
     {
-        return instances.Get();
+        return Instances.Get();
     }
 }

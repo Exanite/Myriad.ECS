@@ -13,9 +13,9 @@ internal class WorkItem
     // replicable tasks, not just the most recent. Otherwise, threads can run out of work, 
     // although there are still replicable tasks left. I store the replicable tasks in a stack 
     // (the most recent task on top). - Not sure if this makes sense in all cases.
-    private static readonly Stack<Task> replicables = new();
-    private static readonly object replicablesLock = new();
-    private static Task? topReplicable;
+    private static readonly Stack<Task> Replicables = new();
+    private static readonly object ReplicablesLock = new();
+    private static Task? TopReplicable;
 
     [DisallowNull]
     internal static Task? Replicable
@@ -25,10 +25,10 @@ internal class WorkItem
             var taken = false;
             try
             {
-                taken = Monitor.TryEnter(replicablesLock);
+                taken = Monitor.TryEnter(ReplicablesLock);
                 if (taken)
                 {
-                    return topReplicable;
+                    return TopReplicable;
                 }
                 else
                 {
@@ -38,15 +38,17 @@ internal class WorkItem
             finally
             {
                 if (taken)
-                    Monitor.Exit(replicablesLock);
+                {
+                    Monitor.Exit(ReplicablesLock);
+                }
             }
         }
         set
         {
-            lock (replicablesLock)
+            lock (ReplicablesLock)
             {
-                replicables.Push(value.Value);
-                topReplicable = value.Value;
+                Replicables.Push(value.Value);
+                TopReplicable = value.Value;
             }
         }
     }
@@ -54,7 +56,7 @@ internal class WorkItem
 
     internal static void SetReplicableNull(Task? task)
     {
-        if (!topReplicable.HasValue)
+        if (!TopReplicable.HasValue)
         {
             return;
         }
@@ -62,10 +64,10 @@ internal class WorkItem
         if (!task.HasValue)
         {
             // SetReplicableNull(null) can be called to clear all replicables.
-            lock (replicablesLock)
+            lock (ReplicablesLock)
             {
-                replicables.Clear();
-                topReplicable = null;
+                Replicables.Clear();
+                TopReplicable = null;
             }
         }
         else
@@ -75,39 +77,47 @@ internal class WorkItem
             var taken = false;
             try
             {
-                taken = Monitor.TryEnter(replicablesLock);
+                taken = Monitor.TryEnter(ReplicablesLock);
                 if (taken)
                 {
-                    if (replicables.Count > 0)
+                    if (Replicables.Count > 0)
                     {
-                        var replicable = replicables.Peek();
-                        if (replicable.ID == task.Value.ID && replicable.Item == task.Value.Item)
-                            replicables.Pop();
+                        var replicable = Replicables.Peek();
+                        if (replicable.Id == task.Value.Id && replicable.Item == task.Value.Item)
+                        {
+                            Replicables.Pop();
+                        }
 
-                        if (replicables.Count > 0)
-                            topReplicable = replicables.Peek();
+                        if (Replicables.Count > 0)
+                        {
+                            TopReplicable = Replicables.Peek();
+                        }
                         else
-                            topReplicable = null;
+                        {
+                            TopReplicable = null;
+                        }
                     }
                 }
             }
             finally
             {
                 if (taken)
-                    Monitor.Exit(replicablesLock);
+                {
+                    Monitor.Exit(ReplicablesLock);
+                }
             }
         }
     }
 
     private List<Exception>? exceptionBuffer;
-    private readonly ManualResetEvent _resetEvent = new(true);
+    private readonly ManualResetEvent resetEvent = new(true);
     private volatile int runCount;
     private volatile int executing;
     private volatile int waitCount;
-    private readonly object _executionLock = new();
+    private readonly object executionLock = new();
 
-    private static readonly Pool<WorkItem> _idleWorkItems = Pool<WorkItem>.Instance;
-    private static readonly ConcurrentDictionary<Thread, Stack<Task>> _runningTasks = new();
+    private static readonly Pool<WorkItem> IdleWorkItems = Pool<WorkItem>.Instance;
+    private static readonly ConcurrentDictionary<Thread, Stack<Task>> RunningTasks = new();
 
 
     public int RunCount => runCount;
@@ -119,10 +129,12 @@ internal class WorkItem
     {
         get
         {
-            if (_runningTasks.TryGetValue(Thread.CurrentThread, out var tasks))
+            if (RunningTasks.TryGetValue(Thread.CurrentThread, out var tasks))
             {
                 if (tasks.Count > 0)
+                {
                     return tasks.Peek();
+                }
             }
             return null;
         }
@@ -131,33 +143,41 @@ internal class WorkItem
     public Task PrepareStart(IWork work)
     {
         Work = work;
-        _resetEvent.Reset();
+        resetEvent.Reset();
         exceptionBuffer = null;
 
         var task = new Task(this);
         var currentTask = CurrentTask;
         if (currentTask.HasValue && currentTask.Value.Item == this)
+        {
             throw new InvalidOperationException("Task does not have an assigned WorkItem");
+        }
 
         return task;
     }
 
-    public bool DoWork(int expectedID)
+    public bool DoWork(int expectedId)
     {
-        lock (_executionLock)
+        lock (executionLock)
         {
-            if (expectedID < runCount)
+            if (expectedId < runCount)
+            {
                 return true;
+            }
+
             if (executing == Work.Options.MaximumThreads)
+            {
                 return false;
+            }
+
             Interlocked.Increment(ref executing);
         }
 
         // associate the current task with this thread, so that Task.CurrentTask gives the correct result
-        if (!_runningTasks.TryGetValue(Thread.CurrentThread, out var tasks))
+        if (!RunningTasks.TryGetValue(Thread.CurrentThread, out var tasks))
         {
             tasks = new Stack<Task>();
-            _runningTasks[Thread.CurrentThread] = tasks;
+            RunningTasks[Thread.CurrentThread] = tasks;
         }
         tasks.Push(new Task(this));
 
@@ -176,21 +196,25 @@ internal class WorkItem
         }
 
         if (tasks != null)
+        {
             tasks.Pop();
+        }
 
-        lock (_executionLock)
+        lock (executionLock)
         {
             Interlocked.Decrement(ref executing);
 
             if (executing == 0)
             {
                 if (exceptionBuffer != null)
+                {
                     Exceptions[runCount] = [..exceptionBuffer];
+                }
 
                 Interlocked.Increment(ref runCount);
 
                 // open the reset event, so tasks waiting on this once can continue
-                _resetEvent.Set();
+                resetEvent.Set();
 
                 // wait for waiting tasks to all exit
                 while (waitCount > 0) ;
@@ -209,7 +233,9 @@ internal class WorkItem
         // requeue the WorkItem for reuse, but only if the runCount hasnt reached the maximum value
         // dont requeue if an exception has been caught, to stop potential memory leaks.
         if (runCount < int.MaxValue && exceptionBuffer == null)
-            _idleWorkItems.Return(this);
+        {
+            IdleWorkItems.Return(this);
+        }
     }
 
     public void Wait(int id)
@@ -217,16 +243,22 @@ internal class WorkItem
         WaitOrExecute(id);
 
         if (Exceptions.TryGetValue(id, out var e))
+        {
             throw new TaskException(e);
+        }
     }
 
     private void WaitOrExecute(int id)
     {
         if (runCount != id)
+        {
             return;
+        }
 
         if (DoWork(id))
+        {
             return;
+        }
 
         try
         {
@@ -235,9 +267,14 @@ internal class WorkItem
             while (runCount == id)
             {
                 if (i > 1000)
-                    _resetEvent.WaitOne();
+                {
+                    resetEvent.WaitOne();
+                }
                 else
+                {
                     Thread.Sleep(0);
+                }
+
                 i++;
             }
         }
@@ -249,6 +286,6 @@ internal class WorkItem
 
     public static WorkItem Get()
     {
-        return _idleWorkItems.Get();
+        return IdleWorkItems.Get();
     }
 }

@@ -1,0 +1,68 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34031.279
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Myriad.Ecs", "Myriad.Ecs\Myriad.Ecs.csproj", "{03873B51-357C-42B8-8BC4-BFF922572F74}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Myriad.Ecs.Tests", "Myriad.Ecs.Tests\Myriad.Ecs.Tests.csproj", "{6DD3CD1E-78C3-4A77-9652-75C8C136D788}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Myriad.Ecs.Benchmarks", "Myriad.Ecs.Benchmarks\Myriad.Ecs.Benchmarks.csproj", "{680E8964-CA4A-4640-9A83-CCB38C32E028}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Repo", "Repo", "{D92C09B4-A191-46FE-AB1B-0C7E618F658E}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		README.md = README.md
+		.gitignore = .gitignore
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ParallelTasks", "ParallelTasks\ParallelTasks.csproj", "{FB7D000F-9BE2-44F7-B66D-B945F8331033}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dependencies", "Dependencies", "{46582F35-D286-49DA-9524-63DA067578A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Exanite.Core", "..\Exanite.Core\Exanite.Core.csproj", "{5A795F13-6B98-45EE-A745-3D54F86ABDF6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Exanite.Core.CsLatest", "..\Exanite.Core\CsLatest\Exanite.Core.CsLatest.csproj", "{567F0715-8718-4D88-9CF8-EFD06F0D3630}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{03873B51-357C-42B8-8BC4-BFF922572F74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03873B51-357C-42B8-8BC4-BFF922572F74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03873B51-357C-42B8-8BC4-BFF922572F74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03873B51-357C-42B8-8BC4-BFF922572F74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DD3CD1E-78C3-4A77-9652-75C8C136D788}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DD3CD1E-78C3-4A77-9652-75C8C136D788}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DD3CD1E-78C3-4A77-9652-75C8C136D788}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DD3CD1E-78C3-4A77-9652-75C8C136D788}.Release|Any CPU.Build.0 = Release|Any CPU
+		{680E8964-CA4A-4640-9A83-CCB38C32E028}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{680E8964-CA4A-4640-9A83-CCB38C32E028}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{680E8964-CA4A-4640-9A83-CCB38C32E028}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{680E8964-CA4A-4640-9A83-CCB38C32E028}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB7D000F-9BE2-44F7-B66D-B945F8331033}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB7D000F-9BE2-44F7-B66D-B945F8331033}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB7D000F-9BE2-44F7-B66D-B945F8331033}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB7D000F-9BE2-44F7-B66D-B945F8331033}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A795F13-6B98-45EE-A745-3D54F86ABDF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A795F13-6B98-45EE-A745-3D54F86ABDF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A795F13-6B98-45EE-A745-3D54F86ABDF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A795F13-6B98-45EE-A745-3D54F86ABDF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{567F0715-8718-4D88-9CF8-EFD06F0D3630}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{567F0715-8718-4D88-9CF8-EFD06F0D3630}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{567F0715-8718-4D88-9CF8-EFD06F0D3630}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{567F0715-8718-4D88-9CF8-EFD06F0D3630}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3300C5B4-B7D6-496F-AF45-F509160B60E0}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{5A795F13-6B98-45EE-A745-3D54F86ABDF6} = {46582F35-D286-49DA-9524-63DA067578A0}
+		{567F0715-8718-4D88-9CF8-EFD06F0D3630} = {46582F35-D286-49DA-9524-63DA067578A0}
+	EndGlobalSection
+EndGlobal

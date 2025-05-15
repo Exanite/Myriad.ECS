@@ -1,0 +1,56 @@
+<#@ template language="C#" #>
+<#@ import namespace="System.Linq" #>
+using Exanite.Core.Runtime;
+using Exanite.Myriad.Ecs;
+using Exanite.Myriad.Ecs.Collections;
+
+namespace Exanite.Myriad.Ecs;
+
+public readonly partial record struct Entity
+{
+<#
+for (var paramCount = 1; paramCount <= 16; paramCount++)
+{
+    var genericArguments = string.Join(", ", Enumerable.Range(0, paramCount).Select(t => $"T{t}"));
+    var outParameters = string.Join(", ", Enumerable.Range(0, paramCount).Select(t => $"out ValueRef<T{t}> ref{t}"));
+    var queryConstraints = string.Join(" ", Enumerable.Range(0, paramCount).Select(t => $"where T{t} : IComponent"));
+#>
+    public bool TryGetComponent<<#= genericArguments #>>(<#= outParameters #>) <#= queryConstraints #>
+    {
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+        ref<#= t #> = default;
+<#
+    }
+#>
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+
+        if (!HasComponent<T<#= t #>>())
+        {
+            return false;
+        }
+<#
+    }
+#>
+
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+        ref<#= t #> = GetComponentRef<T<#= t #>>();
+<#
+    }
+#>
+
+        return true;
+    }
+
+<#
+}
+#>
+}

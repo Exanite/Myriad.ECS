@@ -3,38 +3,38 @@
 internal class ForLoopWork
     : IWork
 {
-    private Action<int>? _action;
+    private Action<int>? action;
 
-    private int _length;
-    private int _stride;
-    private volatile int _index;
+    private int length;
+    private int stride;
+    private volatile int index;
 
     public WorkOptions Options => new() { MaximumThreads = int.MaxValue };
 
     public void Prepare(Action<int> action, int startInclusive, int endExclusive, int stride)
     {
-        _action = action;
-        _index = startInclusive;
-        _length = endExclusive;
-        _stride = stride;
+        this.action = action;
+        index = startInclusive;
+        length = endExclusive;
+        this.stride = stride;
     }
 
     public void DoWork()
     {
         int start;
-        while ((start = IncrementIndex()) < _length)
+        while ((start = IncrementIndex()) < length)
         {
-            var end = Math.Min(start + _stride, _length);
+            var end = Math.Min(start + stride, length);
             for (var i = start; i < end; i++)
             {
-                _action!(i);
+                action!(i);
             }
         }
     }
 
     private int IncrementIndex()
     {
-        return Interlocked.Add(ref _index, _stride) - _stride;
+        return Interlocked.Add(ref index, stride) - stride;
     }
 
     public static ForLoopWork Get()
@@ -51,39 +51,41 @@ internal class ForLoopWork
 internal class ForEachLoopWork<T>
     : IWork
 {
-    private Action<T>? _action;
-    private IEnumerator<T>? _enumerator;
+    private Action<T>? action;
+    private IEnumerator<T>? enumerator;
 
-    private volatile bool _notDone;
-    private readonly object _syncLock = new();
+    private volatile bool notDone;
+    private readonly object syncLock = new();
 
     public WorkOptions Options => new() { MaximumThreads = int.MaxValue };
 
     public void Prepare(Action<T> action, IEnumerator<T> enumerator)
     {
-        _action = action;
-        _enumerator = enumerator;
-        _notDone = true;
+        this.action = action;
+        this.enumerator = enumerator;
+        notDone = true;
     }
 
     public void DoWork()
     {
         var item = default(T);
-        while (_notDone)
+        while (notDone)
         {
             var haveValue = false;
-            lock (_syncLock)
+            lock (syncLock)
             {
                 // ReSharper disable once AssignmentInConditionalExpression
-                if (_notDone = _enumerator!.MoveNext())
+                if (notDone = enumerator!.MoveNext())
                 {
-                    item = _enumerator.Current;
+                    item = enumerator.Current;
                     haveValue = true;
                 }
             }
 
             if (haveValue)
-                _action!(item!);
+            {
+                action!(item!);
+            }
         }
     }
 

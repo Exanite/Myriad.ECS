@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Exanite.Myriad.Ecs</AssemblyName>
+    <RootNamespace>Exanite.Myriad.Ecs</RootNamespace>
+    <OutputPath>bin\$(MSBuildProjectName)\$(Configuration)</OutputPath>
+
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnableTrimAnalzyer>true</EnableTrimAnalzyer>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <WarningsAsErrors>true</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Exanite.Core\Exanite.Core.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="EntityTryGetComponent.g.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>EntityTryGetComponent.g.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="EntityTryGetComponent.g.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>EntityTryGetComponent.g.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>

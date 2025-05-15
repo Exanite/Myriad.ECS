@@ -8,12 +8,12 @@ public readonly struct Task
     private readonly bool valid;
 
     internal WorkItem Item { get; }
-    internal int ID { get; }
+    internal int Id { get; }
 
     /// <summary>
     /// Gets a value which indicates if this task has completed.
     /// </summary>
-    public bool IsComplete => !valid || Item.RunCount != ID;
+    public bool IsComplete => !valid || Item.RunCount != Id;
 
     /// <summary>
     /// Gets an array containing any exceptions thrown by this task.
@@ -24,7 +24,7 @@ public readonly struct Task
         {
             if (valid && IsComplete)
             {
-                Item.Exceptions.TryGetValue(ID, out var e);
+                Item.Exceptions.TryGetValue(Id, out var e);
                 return e;
             }
             return null;
@@ -34,7 +34,7 @@ public readonly struct Task
     internal Task(WorkItem item)
         : this()
     {
-        ID = item.RunCount;
+        Id = item.RunCount;
         Item = item;
         valid = true;
     }
@@ -47,15 +47,20 @@ public readonly struct Task
         if (valid)
         {
             var currentTask = WorkItem.CurrentTask;
-            if (currentTask.HasValue && currentTask.Value.Item == Item && currentTask.Value.ID == ID)
+            if (currentTask.HasValue && currentTask.Value.Item == Item && currentTask.Value.Id == Id)
+            {
                 throw new InvalidOperationException("A task cannot wait on itself.");
-            Item.Wait(ID);
+            }
+
+            Item.Wait(Id);
         }
     }
 
     internal void DoWork()
     {
         if (valid)
-            Item.DoWork(ID);
+        {
+            Item.DoWork(Id);
+        }
     }
 }

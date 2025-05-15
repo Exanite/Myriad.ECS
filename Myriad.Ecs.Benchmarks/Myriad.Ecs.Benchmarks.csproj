@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Exanite.Myriad.Ecs.Benchmarks</AssemblyName>
+    <RootNamespace>Exanite.Myriad.Ecs.Benchmarks</RootNamespace>
+    <OutputPath>bin\$(MSBuildProjectName)\$(Configuration)</OutputPath>
+
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12"/>
+    <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.13.12"/>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Myriad.Ecs\Myriad.Ecs.csproj"/>
+  </ItemGroup>
+</Project>

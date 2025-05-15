@@ -7,8 +7,8 @@ internal class WorkStealingScheduler
 {
     internal List<Worker> Workers { get; }
 
-    private int _tasksCount;
-    private readonly Queue<Task> _tasks;
+    private int tasksCount;
+    private readonly Queue<Task> tasks;
 
     /// <summary>
     /// Creates a new instance of the <see cref="WorkStealingScheduler"/> class.
@@ -24,12 +24,14 @@ internal class WorkStealingScheduler
     /// <param name="numThreads">The number of threads to create.</param>
     private WorkStealingScheduler(int numThreads)
     {
-        _tasks = new Queue<Task>();
-        _tasksCount = 0;
+        tasks = new Queue<Task>();
+        tasksCount = 0;
 
         Workers = new List<Worker>(numThreads);
         for (var i = 0; i < numThreads; i++)
+        {
             Workers.Add(new Worker(this, i));
+        }
 
         for (var i = 0; i < numThreads; i++)
         {
@@ -39,18 +41,18 @@ internal class WorkStealingScheduler
 
     internal bool TryGetTask(out Task task)
     {
-        if (_tasksCount == 0)
+        if (tasksCount == 0)
         {
             task = default;
             return false;
         }
 
-        lock (_tasks)
+        lock (tasks)
         {
-            if (_tasks.Count > 0)
+            if (tasks.Count > 0)
             {
-                task = _tasks.Dequeue();
-                _tasksCount--;
+                task = tasks.Dequeue();
+                tasksCount--;
                 return true;
             }
 
@@ -73,15 +75,17 @@ internal class WorkStealingScheduler
         }
         else
         {
-            lock (_tasks)
+            lock (tasks)
             {
-                _tasks.Enqueue(task);
-                _tasksCount++;
+                tasks.Enqueue(task);
+                tasksCount++;
             }
         }
 
         if (threads > 1)
+        {
             WorkItem.Replicable = task;
+        }
 
         for (var i = 0; i < Workers.Count; i++)
         {

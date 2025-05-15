@@ -4,54 +4,58 @@ namespace ParallelTasks;
 
 internal class Worker
 {
-    private readonly Thread _thread;
-    private readonly ConcurrentBag<Task> _tasks = [ ];
-    private readonly WorkStealingScheduler _scheduler;
+    private readonly Thread thread;
+    private readonly ConcurrentBag<Task> tasks = [];
+    private readonly WorkStealingScheduler scheduler;
 
     public AutoResetEvent Gate { get; } = new AutoResetEvent(false);
 
-    private static readonly ConcurrentDictionary<Thread, Worker> _workers = new();
+    private static readonly ConcurrentDictionary<Thread, Worker> Workers = new();
 
     public static Worker? CurrentWorker
     {
         get
         {
             var currentThread = Thread.CurrentThread;
-            return _workers.GetValueOrDefault(currentThread);
+            return Workers.GetValueOrDefault(currentThread);
         }
     }
 
     public Worker(WorkStealingScheduler scheduler, int index)
     {
-        _thread = new Thread(Work)
+        thread = new Thread(Work)
         {
             Name = "ParallelTasks Worker " + index,
             IsBackground = true,
         };
 
-        _scheduler = scheduler;
+        this.scheduler = scheduler;
 
-        _workers[_thread] = this;
+        Workers[thread] = this;
     }
 
     public void Start()
     {
-        _thread.Start();
+        thread.Start();
     }
 
     public void AddWork(Task task)
     {
-        _tasks.Add(task);
+        tasks.Add(task);
     }
 
     private void Work()
     {
         while (true)
         {
-            if (_tasks.TryTake(out var task))
+            if (tasks.TryTake(out var task))
+            {
                 task.DoWork();
+            }
             else
+            {
                 FindWork();
+            }
         }
 
         // ReSharper disable once FunctionNeverReturns
@@ -63,8 +67,10 @@ internal class Worker
         var foundWork = false;
         do
         {
-            if (_scheduler.TryGetTask(out task))
+            if (scheduler.TryGetTask(out task))
+            {
                 break;
+            }
 
             var replicable = WorkItem.Replicable;
             if (replicable.HasValue)
@@ -72,18 +78,20 @@ internal class Worker
                 replicable.Value.DoWork();
                 WorkItem.SetReplicableNull(replicable);
 
-                // MartinG@DigitalRune: Continue checking local queue and replicables. 
+                // MartinG@DigitalRune: Continue checking local queue and replicables.
                 // No need to steal work yet.
                 continue;
             }
 
-            for (var i = 0; i < _scheduler.Workers.Count; i++)
+            for (var i = 0; i < scheduler.Workers.Count; i++)
             {
-                var worker = _scheduler.Workers[i];
+                var worker = scheduler.Workers[i];
                 if (worker == this)
+                {
                     continue;
+                }
 
-                if (worker._tasks.TryTake(out task))
+                if (worker.tasks.TryTake(out task))
                 {
                     foundWork = true;
                     break;
@@ -97,6 +105,6 @@ internal class Worker
             }
         } while (!foundWork);
 
-        _tasks.Add(task);
+        tasks.Add(task);
     }
 }
