@@ -1,0 +1,73 @@
+<#@ template language="C#" #>
+<#@ import namespace="System.Linq" #>
+#nullable enable
+
+using System.Runtime.CompilerServices;
+using Exanite.Core.Runtime;
+using Exanite.Myriad.Ecs;
+using Exanite.Myriad.Ecs.Collections;
+using Exanite.Myriad.Ecs.Components;
+
+namespace Exanite.Myriad.Ecs;
+
+public readonly partial record struct Entity
+{
+<#
+for (var paramCount = 1; paramCount <= 16; paramCount++)
+{
+    var genericArguments = string.Join(", ", Enumerable.Range(0, paramCount).Select(t => $"T{t}"));
+    var outParameters = string.Join(", ", Enumerable.Range(0, paramCount).Select(t => $"out Ref<T{t}> ref{t}"));
+    var queryConstraints = string.Join(" ", Enumerable.Range(0, paramCount).Select(t => $"where T{t} : IComponent"));
+#>
+    /// <summary>
+    /// Try to get a reference to a component of the given type.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGet<<#= genericArguments #>>(<#= outParameters #>) <#= queryConstraints #>
+    {
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+        ref<#= t #> = default;
+<#
+    }
+#>
+
+        if (IsDefault || !World.Entities.TryGetLocation(EntityId, out var locationRef))
+        {
+            return false;
+        }
+
+        ref var location = ref locationRef.Value;
+        var components = location.Chunk.Archetype.Components;
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+
+        var componentId<#= t #> = ComponentId.Get<T<#= t #>>();
+        if (!components.Contains(componentId<#= t #>))
+        {
+            return false;
+        }
+<#
+    }
+#>
+
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+        ref<#= t #> = location.Chunk.GetRef<T<#= t #>>(location.IndexInChunk, componentId<#= t #>);
+<#
+    }
+#>
+
+        return true;
+    }
+
+<#
+}
+#>
+}

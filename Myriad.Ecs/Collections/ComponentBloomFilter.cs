@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using Exanite.Myriad.Ecs.Components;
 using Myriad.Ecs.xxHash;
 
@@ -57,14 +58,14 @@ internal struct ComponentBloomFilter
         // set does not intersect.
 
         // Bitwise & each matching element in the two sets together
-        var abcd = System.Runtime.Intrinsics.Vector256.Create(a, b, c, d)
-                 & System.Runtime.Intrinsics.Vector256.Create(other.a, other.b, other.c, other.d);
-        var ef = System.Runtime.Intrinsics.Vector128.Create(e, f)
-               & System.Runtime.Intrinsics.Vector128.Create(other.e, other.f);
+        var abcd = Vector256.Create(a, b, c, d)
+            & Vector256.Create(other.a, other.b, other.c, other.d);
+        var ef = Vector128.Create(e, f)
+            & Vector128.Create(other.e, other.f);
 
         // Check if any of the elements had any matching bits
-        var abz = System.Runtime.Intrinsics.Vector256.EqualsAny(abcd, System.Runtime.Intrinsics.Vector256<ulong>.Zero);
-        var efz = System.Runtime.Intrinsics.Vector128.EqualsAny(ef, System.Runtime.Intrinsics.Vector128<ulong>.Zero);
+        var abz = Vector256.EqualsAny(abcd, Vector256<ulong>.Zero);
+        var efz = Vector128.EqualsAny(ef, Vector128<ulong>.Zero);
 
         var fail = abz | efz;
 

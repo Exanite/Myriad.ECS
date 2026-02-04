@@ -1,51 +1,52 @@
+using System;
+using System.Linq;
 using Exanite.Myriad.Ecs.Components;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Exanite.Myriad.Ecs.Tests;
 
-[TestClass]
 public class ComponentRegistryTests
 {
-    [TestMethod]
+    [Fact]
     public void CannotAssignNonComponent()
     {
-        Assert.ThrowsException<ArgumentException>(() =>
+        Assert.Throws<ArgumentException>(() =>
         {
             ComponentId.Get(typeof(int));
         });
     }
 
-    [TestMethod]
+    [Fact]
     public void AssignsDistinctIds()
     {
         var ids = new[]
         {
-            ComponentId.Get<ComponentInt32>(),
-            ComponentId.Get<ComponentInt64>(),
-            ComponentId.Get(typeof(ComponentInt16)),
-            ComponentId.Get(typeof(ComponentFloat)),
+            ComponentId.Get<EcsInt32>(),
+            ComponentId.Get<EcsInt64>(),
+            ComponentId.Get(typeof(EcsInt16)),
+            ComponentId.Get(typeof(EcsFloat)),
         };
 
-        Assert.AreEqual(4, ids.Distinct().Count());
+        Assert.Equal(4, ids.Distinct().Count());
 
-        Assert.AreEqual(typeof(ComponentInt16), ComponentId.Get<ComponentInt16>().Type);
+        Assert.Equal(typeof(EcsInt16), ComponentId.Get<EcsInt16>().Type);
     }
 
-    [TestMethod]
+    [Fact]
     public void DoesNotReassign()
     {
-        var id = ComponentId.Get<ComponentInt32>();
-        var id2 = ComponentId.Get<ComponentInt32>();
+        var id = ComponentId.Get<EcsInt32>();
+        var id2 = ComponentId.Get<EcsInt32>();
 
-        Assert.AreEqual(id, id2);
+        Assert.Equal(id, id2);
     }
 
-    [TestMethod]
+    [Fact]
     public void ThrowsForUnknownId()
     {
-        Assert.ThrowsException<InvalidOperationException>(() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
-            var t = default(ComponentId).Type;
+            _ = default(ComponentId).Type;
         });
     }
 }

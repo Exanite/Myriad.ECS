@@ -1,0 +1,66 @@
+<#@ template language="C#" #>
+<#@ import namespace="System.Linq" #>
+#nullable enable
+
+using System.Runtime.CompilerServices;
+using Exanite.Core.Runtime;
+using Exanite.Myriad.Ecs;
+using Exanite.Myriad.Ecs.Collections;
+using Exanite.Myriad.Ecs.Components;
+
+namespace Exanite.Myriad.Ecs;
+
+public readonly partial record struct Entity
+{
+<#
+for (var paramCount = 1; paramCount <= 16; paramCount++)
+{
+    var genericArguments = string.Join(", ", Enumerable.Range(0, paramCount).Select(t => $"T{t}"));
+    var outParameters = string.Join(", ", Enumerable.Range(0, paramCount).Select(t => $"out EcsRef<T{t}> ref{t}"));
+    var queryConstraints = string.Join(" ", Enumerable.Range(0, paramCount).Select(t => $"where T{t} : IComponent"));
+#>
+    /// <summary>
+    /// Try to get a storable reference to a component of the given type.
+    /// It is safe to use the returned ComponentRefs even when this method returns false,
+    /// the ComponentRefs are just not guaranteed to point to a component in this case.
+    /// This is because ComponentRef can check for the existence of the component.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetEcsRef<<#= genericArguments #>>(<#= outParameters #>) <#= queryConstraints #>
+    {
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+        ref<#= t #> = new EcsRef<T<#= t #>>(this);
+<#
+    }
+#>
+
+        if (IsDefault || !World.Entities.TryGetLocation(EntityId, out var location))
+        {
+            return false;
+        }
+
+        var components = location.Value.Chunk.Archetype.Components;
+<#
+    for (var t = 0; t < paramCount; t++)
+    {
+#>
+
+        var componentId<#= t #> = ComponentId.Get<T<#= t #>>();
+        if (!components.Contains(componentId<#= t #>))
+        {
+            return false;
+        }
+<#
+    }
+#>
+
+        return true;
+    }
+
+<#
+}
+#>
+}

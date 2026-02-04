@@ -2,18 +2,11 @@
   <PropertyGroup>
     <AssemblyName>Exanite.Myriad.Ecs</AssemblyName>
     <RootNamespace>Exanite.Myriad.Ecs</RootNamespace>
-    <OutputPath>bin\$(MSBuildProjectName)\$(Configuration)</OutputPath>
 
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-  <PropertyGroup>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <EnableTrimAnalzyer>true</EnableTrimAnalzyer>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <WarningsAsErrors>true</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,16 +14,25 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="EntityTryGetComponent.g.tt">
+    <None Update="Entity.TryGet.g.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>EntityTryGetComponent.g.cs</LastGenOutput>
+      <LastGenOutput>Entity.TryGet.g.cs</LastGenOutput>
+    </None>
+    <None Update="Entity.TryGetEcsRef.g.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Entity.TryGetEcsRef.g.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Compile Update="EntityTryGetComponent.g.cs">
+    <Compile Update="Entity.TryGet.g.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
-      <DependentUpon>EntityTryGetComponent.g.tt</DependentUpon>
+      <DependentUpon>Entity.TryGet.g.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Entity.TryGetEcsRef.g.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Entity.TryGetEcsRef.g.tt</DependentUpon>
     </Compile>
   </ItemGroup>
 </Project>

@@ -118,9 +118,9 @@ namespace Myriad.Ecs.xxHash
                 } while (input < limit);
 
                 h64 = ((v1 << 1) | (v1 >> (64 - 1))) +
-                      ((v2 << 7) | (v2 >> (64 - 7))) +
-                      ((v3 << 12) | (v3 >> (64 - 12))) +
-                      ((v4 << 18) | (v4 >> (64 - 18)));
+                    ((v2 << 7) | (v2 >> (64 - 7))) +
+                    ((v3 << 12) | (v3 >> (64 - 12))) +
+                    ((v4 << 18) | (v4 >> (64 - 18)));
 
                 // XXH64_mergeRound
                 v1 *= XXH_PRIME64_2;
@@ -167,6 +167,7 @@ namespace Myriad.Ecs.xxHash
                 h64 = XXH_rotl64(h64, 27) * XXH_PRIME64_1 + XXH_PRIME64_4;
                 len -= 8;
             }
+
             if (len >= 4)
             {
                 h64 ^= *(uint*)input * XXH_PRIME64_1;
@@ -174,6 +175,7 @@ namespace Myriad.Ecs.xxHash
                 h64 = XXH_rotl64(h64, 23) * XXH_PRIME64_2 + XXH_PRIME64_3;
                 len -= 4;
             }
+
             while (len > 0)
             {
                 h64 ^= (*input++) * XXH_PRIME64_5;
@@ -192,4 +194,3 @@ namespace Myriad.Ecs.xxHash
         }
     }
 }
-

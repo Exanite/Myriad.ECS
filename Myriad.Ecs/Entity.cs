@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Exanite.Core.Runtime;
+using Exanite.Core.Utilities;
 using Exanite.Myriad.Ecs.Collections;
 using Exanite.Myriad.Ecs.Components;
 
@@ -11,16 +11,51 @@ namespace Exanite.Myriad.Ecs;
 /// <summary>
 /// An <see cref="Entity"/> is an ID in the <see cref="World"/> which has a set of components associated with it.
 /// </summary>
-[DebuggerDisplay("{EntityId}")]
 public readonly partial record struct Entity : IComparable<Entity>
 {
     /// <summary>
-    /// Check if this Entity still exists.
+    /// Check if this entity still exists.
     /// </summary>
     public bool IsAlive
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Id != 0 && World.GetVersion(Id) == Version;
+        get
+        {
+            if (Index == 0)
+            {
+                return false;
+            }
+
+            ref var location = ref World.Entities.GetLocation(Index);
+            return location.Version == Version && location.Chunk != null!;
+        }
+    }
+
+    /// <summary>
+    /// Check if this entity is pending creation.
+    /// </summary>
+    public bool IsPending
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (Index == 0)
+            {
+                return false;
+            }
+
+            ref var location = ref World.Entities.GetLocation(Index);
+            return location.Version == Version && location.Chunk == null!;
+        }
+    }
+
+    /// <summary>
+    /// Check if this entity is default initialized.
+    /// </summary>
+    internal bool IsDefault
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Index == 0;
     }
 
     /// <summary>
@@ -29,31 +64,26 @@ public readonly partial record struct Entity : IComparable<Entity>
     public readonly EcsWorld World;
 
     /// <summary>
-    /// The <see cref="Ecs.Entity"/> of an entity, may be re-used very quickly once an <see cref="Ecs.Entity"/> is destroyed.
+    /// The index of this entity.
+    /// May be re-used very quickly once an <see cref="Entity"/> is destroyed.
     /// </summary>
-    public int Id => EntityId.Id;
+    public int Index => EntityId.Index;
 
     /// <summary>
-    /// The version number of this ID, may also be re-used but only after the full 32 bit counter has been overflowed for this specific ID.
+    /// The version of this entity.
+    /// May be re-used, but only after the full 32 bit counter has been overflowed for this specific index.
     /// </summary>
     public uint Version => EntityId.Version;
 
     /// <summary>
-    /// The raw ID of this <see cref="Entity"/>
+    /// The raw ID of this <see cref="Entity"/>.
     /// </summary>
     internal readonly EntityId EntityId;
 
     /// <summary>
     /// Get the set of components which this entity currently has.
     /// </summary>
-    public ImmutableOrderedListSet<ComponentId> ComponentIds
-    {
-        get
-        {
-            var location = World.GetStorageLocation(EntityId);
-            return location.Chunk.Archetype.Components;
-        }
-    }
+    public ImmutableOrderedListSet<ComponentId> ComponentIds => World.Entities.GetArchetype(EntityId).Components;
 
     /// <summary>
     /// Get a boxed array of all components.
@@ -61,13 +91,19 @@ public readonly partial record struct Entity : IComparable<Entity>
     /// This is very slow and the returned data is a copy of the original data.
     /// Avoid using this for anything other than debugging!
     /// </summary>
-    public object[] BoxedComponents => ComponentIds.Select(GetBoxedComponent).ToArray()!;
+    public object[] BoxedComponents => ComponentIds.Select(GetBoxed).ToArray()!;
+
+    internal Entity(EntityId id, EcsWorld world)
+    {
+        EntityId = id;
+        World = world;
+    }
 
     /// <summary>
     /// Check if this entity has a component.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool HasComponent<T>() where T : IComponent
+    public bool Has<T>() where T : IComponent
     {
         return ComponentIds.Contains(ComponentId.Get<T>());
     }
@@ -77,38 +113,55 @@ public readonly partial record struct Entity : IComparable<Entity>
     /// does not have this component an exception will be thrown.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref T GetComponent<T>() where T : IComponent
+    public ref T Get<T>() where T : IComponent
     {
-        ref var entityInfo = ref World.GetStorageLocation(EntityId);
-        return ref entityInfo.Chunk.Get<T>(EntityId, entityInfo.IndexInChunk);
+        ref var location = ref World.Entities.GetLocation(EntityId);
+        return ref location.Chunk.Get<T>(location.IndexInChunk);
     }
 
     /// <summary>
-    /// Get a reference to a component of the given type. If the entity
-    /// does not have this component an exception will be thrown.
+    /// Get a reference to a component of the given type.
+    /// If the entity does not have this component an exception will be thrown.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ValueRef<T> GetComponentRef<T>() where T : IComponent
+    public Ref<T> GetRef<T>() where T : IComponent
     {
-        ref var entityInfo = ref World.GetStorageLocation(EntityId);
-        return entityInfo.Chunk.GetRef<T>(EntityId, entityInfo.IndexInChunk);
+        ref var location = ref World.Entities.GetLocation(EntityId);
+        return location.Chunk.GetRef<T>(location.IndexInChunk);
     }
 
     /// <summary>
-    /// Get a reference to a component of the given type. If the entity
-    /// does not have this component an exception will be thrown.
+    /// Get a reference to a component of the given type.
+    /// If the entity does not have this component an exception will be thrown.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ComponentRef<T> GetStorableComponentRef<T>() where T : IComponent
+    public EcsRef<T> GetEcsRef<T>() where T : IComponent
     {
-        return new ComponentRef<T>(this);
+        GuardUtility.IsTrue(IsAlive, "Entity does not exist");
+        GuardUtility.IsTrue(Has<T>(), $"Component does not exist on entity: {GetType().Name}");
+
+        return new EcsRef<T>(this);
+    }
+
+    /// <summary>
+    /// Get a reference to a component of the given type.
+    /// No exception will be thrown if the entity does not have this component.
+    /// </summary>
+    /// <remarks>
+    /// This is useful when the entity has pending command buffer changes.
+    /// Accessing the component will still validate the reference.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public EcsRef<T> GetEcsRefUnchecked<T>() where T : IComponent
+    {
+        return new EcsRef<T>(this);
     }
 
     /// <summary>
     /// Get a <b>boxed copy</b> of a component from this entity. Only use for debugging!
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public object? GetBoxedComponent(ComponentId id)
+    public object? GetBoxed(ComponentId id)
     {
         if (!IsAlive)
         {
@@ -120,20 +173,30 @@ public readonly partial record struct Entity : IComparable<Entity>
             return null;
         }
 
-        ref var entityInfo = ref World.GetStorageLocation(EntityId);
-        return entityInfo.Chunk.GetComponentArray(id).GetValue(entityInfo.IndexInChunk);
-    }
-
-    internal Entity(EntityId id, EcsWorld world)
-    {
-        EntityId = id;
-        World = world;
+        ref var location = ref World.Entities.GetLocation(EntityId);
+        return location.Chunk.GetComponentArray(id).GetValue(location.IndexInChunk);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override string ToString()
     {
-        return EntityId.ToString();
+        if (World == null)
+        {
+            return "0:0:0";
+        }
+
+        var result = $"{World.WorldId}:{Index}:{Version}";
+        var location = World.Entities.GetLocation(EntityId.Index);
+        if (EntityId.Version != location.Version)
+        {
+            result += " (Destroyed)";
+        }
+        else if (location.Chunk == null!)
+        {
+            result += " (Pending)";
+        }
+
+        return result;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

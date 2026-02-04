@@ -85,7 +85,11 @@ public class OrderedListSet<T> : IReadOnlyList<T> where T : struct, IComparable<
         return true;
     }
 
-    public void AddRange<TValue>(Dictionary<T, TValue>.KeyCollection keys)
+    #endregion
+
+    #region UnionWith
+
+    public void UnionWith<TValue>(Dictionary<T, TValue> keys)
     {
         EnsureCapacity(Count + keys.Count);
 
@@ -93,21 +97,17 @@ public class OrderedListSet<T> : IReadOnlyList<T> where T : struct, IComparable<
         {
             // Since this is a key collection we know all the items must be
             // unique, therefore we can just add and sort
-            items.AddRange(keys);
+            items.AddRange(keys.Keys);
             items.Sort();
         }
         else
         {
-            foreach (var key in keys)
+            foreach (var key in keys.Keys)
             {
                 Add(key);
             }
         }
     }
-
-    #endregion
-
-    #region UnionWith
 
     public void UnionWith(ImmutableOrderedListSet<T> set)
     {
@@ -124,6 +124,7 @@ public class OrderedListSet<T> : IReadOnlyList<T> where T : struct, IComparable<
             }
         }
     }
+
     #endregion
 
     public void IntersectWith(ImmutableOrderedListSet<T> other)
@@ -342,7 +343,7 @@ public class OrderedListSet<T> : IReadOnlyList<T> where T : struct, IComparable<
         return a.SequenceEqual(b);
     }
 
-    public bool SetEquals<TV>(Dictionary<T, TV> other)
+    public bool SetEquals<TValue>(Dictionary<T, TValue> other)
     {
         // Can't be equal if counts are different
         if (other.Count != Count)

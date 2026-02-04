@@ -1,143 +1,147 @@
-﻿using Exanite.Myriad.Ecs.CommandBuffers;
+﻿using Exanite.Core.Runtime;
 using Exanite.Myriad.Ecs.Components;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Exanite.Myriad.Ecs.Tests;
 
-[TestClass]
 public class EntityTests
 {
-    [TestMethod]
+    [Fact]
     public void DefaultEntityIsNotAlive()
     {
-        Assert.IsFalse(default(Entity).IsAlive);
-        Assert.IsFalse(default(Entity).IsAlive);
+        Assert.False(default(Entity).IsAlive);
+        Assert.False(default(Entity).IsAlive);
     }
 
-    [TestMethod]
+    [Fact]
     public void CompareDefaultEntity()
     {
-        Assert.AreEqual(0, default(Entity).CompareTo(default));
+        Assert.Equal(0, default(Entity).CompareTo(default));
     }
 
-    [TestMethod]
+    [Fact]
     public void CompareEntityWithSelf()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var eb = b.Create();
-        using var resolver = b.Execute();
-        var entity = eb.Resolve();
+        var entity = commandBuffer.Create().Entity;
+        commandBuffer.Execute();
 
-        Assert.AreEqual(0, entity.CompareTo(entity));
+        Assert.Equal(0, entity.CompareTo(entity));
     }
 
-    [TestMethod]
+    [Fact]
     public void CompareEntityWithAnother()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var eb1 = b.Create();
-        var eb2 = b.Create();
-        using var resolver = b.Execute();
-        var entity1 = eb1.Resolve();
-        var entity2 = eb2.Resolve();
+        var entity1 = commandBuffer.Create().Entity;
+        var entity2 = commandBuffer.Create().Entity;
+
+        commandBuffer.Execute();
 
         var c1 = entity1.CompareTo(entity2);
         var c2 = entity2.CompareTo(entity1);
 
-        Assert.AreNotEqual(c1, c2);
-        Assert.AreNotEqual(0, c1);
-        Assert.AreNotEqual(0, c2);
+        Assert.NotEqual(c1, c2);
+        Assert.NotEqual(0, c1);
+        Assert.NotEqual(0, c2);
 
-        Assert.AreNotEqual(entity1.ToString(), entity2.ToString());
+        Assert.NotEqual(entity1.ToString(), entity2.ToString());
     }
 
-    [TestMethod]
+    [Fact]
     public void GetComponent()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var e = b.Create()
-                 .Set(new ComponentInt16(7));
-        using var resolver = b.Execute();
-        var entity = e.Resolve();
+        var entity = commandBuffer.Create()
+            .Set(new EcsInt16(7))
+            .Entity;
 
-        ref var c = ref entity.GetComponent<ComponentInt16>();
-        Assert.AreEqual(7, c.Value);
+        commandBuffer.Execute();
+
+        ref var c = ref entity.Get<EcsInt16>();
+        Assert.Equal(7, c.Value);
     }
 
-    [TestMethod]
+    [Fact]
     public void GetComponents()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var e = b.Create().Set(new ComponentInt16(7));
-        using var resolver = b.Execute();
-        var entity = e.Resolve();
+        var entity = commandBuffer.Create()
+            .Set(new EcsInt16(7))
+            .Entity;
 
-        Assert.AreEqual(1, entity.ComponentIds.Count);
-        Assert.IsTrue(entity.ComponentIds.Contains(ComponentId.Get<ComponentInt16>()));
+        commandBuffer.Execute();
+
+        Assert.Equal(1, entity.ComponentIds.Count);
+        Assert.True(entity.ComponentIds.Contains(ComponentId.Get<EcsInt16>()));
     }
 
-    [TestMethod]
+    [Fact]
     public void GetComponentDead()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var e = b.Create().Set(new ComponentInt16(7));
-        var resolver = b.Execute();
-        var entity = e.Resolve();
-        resolver.Dispose();
+        var entity = commandBuffer.Create()
+            .Set(new EcsInt16(7))
+            .Entity;
 
-        b.Destroy(entity);
-        b.Execute().Dispose();
+        commandBuffer.Execute();
 
-        Assert.ThrowsException<ArgumentException>(() =>
+        commandBuffer.Destroy(entity);
+        commandBuffer.Execute();
+
+        Assert.Throws<GuardException>(() =>
         {
-            var c = entity.ComponentIds.Count;
+            _ = entity.ComponentIds.Count;
         });
     }
 
-    [TestMethod]
+    [Fact]
     public void GetBoxedComponents()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var e = b.Create().Set(new ComponentInt16(7));
-        using var resolver = b.Execute();
-        var entity = e.Resolve();
+        var entity = commandBuffer.Create()
+            .Set(new EcsInt16(7))
+            .Entity;
 
-        Assert.AreEqual(1, entity.BoxedComponents.Length);
-        Assert.AreEqual(new ComponentInt16(7), (ComponentInt16)entity.BoxedComponents[0]);
+        commandBuffer.Execute();
+
+        Assert.Equal(1, entity.BoxedComponents.Length);
+        Assert.Equal(new EcsInt16(7), (EcsInt16)entity.BoxedComponents[0]);
     }
 
-    [TestMethod]
+    [Fact]
     public void GetBoxedComponent()
     {
-        var w = new EcsWorld();
-        var b = new EcsCommandBuffer(w);
+        var world = new EcsWorld();
+        var commandBuffer = world.AcquireCommandBuffer();
 
-        var e = b.Create()
-                 .Set(new ComponentInt16(7));
-        using var resolver = b.Execute();
-        var entity = e.Resolve();
+        var entity = commandBuffer.Create()
+            .Set(new EcsInt16(7))
+            .Entity;
 
-        var c = (ComponentInt16)entity.GetBoxedComponent(ComponentId.Get<ComponentInt16>())!;
-        Assert.AreEqual(7, c.Value);
+        commandBuffer.Execute();
 
-        Assert.IsNull(entity.GetBoxedComponent(ComponentId.Get<ComponentInt32>()));
+        var component = (EcsInt16)entity.GetBoxed(ComponentId.Get<EcsInt16>())!;
+        Assert.Equal(7, component.Value);
 
-        b.Destroy(entity);
-        b.Execute().Dispose();
+        Assert.Null(entity.GetBoxed(ComponentId.Get<EcsInt32>()));
 
-        Assert.IsNull(entity.GetBoxedComponent(ComponentId.Get<ComponentInt16>()));
-        Assert.IsNull(entity.GetBoxedComponent(ComponentId.Get<ComponentInt32>()));
+        commandBuffer.Destroy(entity);
+        commandBuffer.Execute();
+
+        Assert.Null(entity.GetBoxed(ComponentId.Get<EcsInt16>()));
+        Assert.Null(entity.GetBoxed(ComponentId.Get<EcsInt32>()));
     }
 }

@@ -1,82 +1,81 @@
 ﻿using Exanite.Myriad.Ecs.Collections;
 using Exanite.Myriad.Ecs.Components;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace Exanite.Myriad.Ecs.Tests.Collections;
 
-[TestClass]
 public class ComponentBloomFilterTests
 {
-    [TestMethod]
+    [Fact]
     public void EmptyNotIntersect()
     {
         var a = new ComponentBloomFilter();
         var b = new ComponentBloomFilter();
 
-        Assert.IsFalse(a.MaybeIntersects(ref b));
+        Assert.False(a.MaybeIntersects(ref b));
     }
 
-    [TestMethod]
+    [Fact]
     public void DisjointNotIntersect()
     {
         var a = new ComponentBloomFilter();
-        a.Add(ComponentId.Get<Component0>());
-        a.Add(ComponentId.Get<Component1>());
-        a.Add(ComponentId.Get<Component2>());
-        a.Add(ComponentId.Get<Component3>());
+        a.Add(ComponentId.Get<Ecs0>());
+        a.Add(ComponentId.Get<Ecs1>());
+        a.Add(ComponentId.Get<Ecs2>());
+        a.Add(ComponentId.Get<Ecs3>());
 
         var b = new ComponentBloomFilter();
-        b.Add(ComponentId.Get<Component8>());
-        b.Add(ComponentId.Get<Component9>());
-        b.Add(ComponentId.Get<Component10>());
-        b.Add(ComponentId.Get<Component11>());
+        b.Add(ComponentId.Get<Ecs8>());
+        b.Add(ComponentId.Get<Ecs9>());
+        b.Add(ComponentId.Get<Ecs10>());
+        b.Add(ComponentId.Get<Ecs11>());
 
         var i = a.MaybeIntersects(ref b);
-        Assert.IsFalse(i);
+        Assert.False(i);
 
         // Note that this test _can_ fail, since the bloom filter is probabilistic and errors on the side of caution.
     }
 
-    [TestMethod]
+    [Fact]
     public void IntersectingIntersect()
     {
         var a = new ComponentBloomFilter();
-        a.Add(ComponentId.Get<Component0>());
-        a.Add(ComponentId.Get<Component1>());
-        a.Add(ComponentId.Get<Component4>());
+        a.Add(ComponentId.Get<Ecs0>());
+        a.Add(ComponentId.Get<Ecs1>());
+        a.Add(ComponentId.Get<Ecs4>());
 
         var b = new ComponentBloomFilter();
-        b.Add(ComponentId.Get<Component2>());
-        b.Add(ComponentId.Get<Component3>());
-        b.Add(ComponentId.Get<Component4>());
+        b.Add(ComponentId.Get<Ecs2>());
+        b.Add(ComponentId.Get<Ecs3>());
+        b.Add(ComponentId.Get<Ecs4>());
 
-        Assert.IsTrue(a.MaybeIntersects(ref b));
+        Assert.True(a.MaybeIntersects(ref b));
     }
 
-    [TestMethod]
+    [Fact]
     public void UnionIntersects()
     {
         var a = new ComponentBloomFilter();
-        a.Add(ComponentId.Get<Component0>());
-        a.Add(ComponentId.Get<Component1>());
-        a.Add(ComponentId.Get<Component2>());
+        a.Add(ComponentId.Get<Ecs0>());
+        a.Add(ComponentId.Get<Ecs1>());
+        a.Add(ComponentId.Get<Ecs2>());
 
         var b = new ComponentBloomFilter();
-        b.Add(ComponentId.Get<Component3>());
-        b.Add(ComponentId.Get<Component4>());
-        b.Add(ComponentId.Get<Component5>());
+        b.Add(ComponentId.Get<Ecs3>());
+        b.Add(ComponentId.Get<Ecs4>());
+        b.Add(ComponentId.Get<Ecs5>());
 
         var c = new ComponentBloomFilter();
-        c.Add(ComponentId.Get<Component0>());
+        c.Add(ComponentId.Get<Ecs0>());
 
-        Assert.IsFalse(a.MaybeIntersects(ref b));
-        Assert.IsFalse(b.MaybeIntersects(ref c));
-        Assert.IsTrue(a.MaybeIntersects(ref c));
+        Assert.False(a.MaybeIntersects(ref b));
+        Assert.False(b.MaybeIntersects(ref c));
+        Assert.True(a.MaybeIntersects(ref c));
 
         var d = new ComponentBloomFilter();
         d.Union(ref b);
         d.Union(ref c);
 
-        Assert.IsTrue(a.MaybeIntersects(ref d));
+        Assert.True(a.MaybeIntersects(ref d));
     }
 }

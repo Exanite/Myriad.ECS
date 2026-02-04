@@ -1,81 +1,52 @@
-﻿using System;
-
-namespace Exanite.Myriad.Ecs.CommandBuffers;
+﻿namespace Exanite.Myriad.Ecs.CommandBuffers;
 
 /// <summary>
-/// An entity that has been created in a command buffer, but not yet created. Can be used to add components.
+/// An entity that is being processed by a command buffer.
+/// Mainly used for fluent method chaining.
 /// </summary>
-public readonly record struct BufferedEntity
+public readonly ref struct BufferedEntity
 {
-    private readonly uint id;
-    private readonly uint version;
+    public readonly Entity Entity;
+    public readonly EcsCommandBuffer CommandBuffer;
 
-    private readonly EcsCommandBuffer commandBuffer;
-    private readonly EcsCommandBufferResolver resolver;
-
-    /// <summary>
-    /// Get the <see cref="EcsCommandBuffer"/> which this <see cref="BufferedEntity"/> is from.
-    /// </summary>
-    public EcsCommandBuffer CommandBuffer
+    internal BufferedEntity(Entity entity, EcsCommandBuffer commandBuffer)
     {
-        get
-        {
-            EnsureIsMutable();
-            return commandBuffer;
-        }
+        Entity = entity;
+        CommandBuffer = commandBuffer;
     }
 
-    internal BufferedEntity(uint id, EcsCommandBuffer commandBuffer, EcsCommandBufferResolver resolver)
+    public static implicit operator Entity(BufferedEntity value)
     {
-        this.id = id;
-        this.commandBuffer = commandBuffer;
-        this.resolver = resolver;
-
-        version = commandBuffer.Version;
+        return value.Entity;
     }
 
-    /// <summary>
-    /// Add or overwrite a component attached to this entity.
-    /// </summary>
-    /// <typeparam name="T">The type of component to add.</typeparam>
-    /// <param name="value">The value of the component to add.</param>
-    /// <returns>This buffered entity.</returns>
+    /// <inheritdoc cref="EcsCommandBuffer.Set"/>
     public BufferedEntity Set<T>(T value) where T : IComponent
     {
-        EnsureIsMutable();
-
-        commandBuffer.SetBuffered(id, value);
-        return this;
+        return CommandBuffer.Set(Entity, value);
     }
 
-    /// <summary>
-    /// Resolve this <see cref="BufferedEntity"/> into the real <see cref="Entity"/> that was constructed.
-    /// </summary>
-    public Entity Resolve()
+    /// <inheritdoc cref="EcsCommandBuffer.Set"/>
+    public BufferedEntity SetBoxed(object value)
     {
-        if (resolver.Parent == null)
-        {
-            throw new ObjectDisposedException("Resolver has already been disposed");
-        }
-
-        if (resolver.Parent != commandBuffer)
-        {
-            throw new InvalidOperationException("Cannot use a resolver from one command buffer with buffered entity from another");
-        }
-
-        if (resolver.Version != version)
-        {
-            throw new ObjectDisposedException("Resolver has already been disposed");
-        }
-
-        return resolver.Lookup[id].ToEntity(resolver.World);
+        return CommandBuffer.SetBoxed(Entity, value);
     }
 
-    private void EnsureIsMutable()
+    /// <inheritdoc cref="EcsCommandBuffer.Remove"/>
+    public BufferedEntity Remove<T>() where T : IComponent
     {
-        if (version != commandBuffer.Version)
-        {
-            throw new InvalidOperationException("Cannot use buffered entity after command buffer has been executed");
-        }
+        return CommandBuffer.Remove<T>(Entity);
+    }
+
+    /// <inheritdoc cref="EcsCommandBuffer.CopyFromInternal"/>
+    public BufferedEntity CopyFrom(Entity prefab)
+    {
+        return CommandBuffer.CopyFrom(Entity, prefab);
+    }
+
+    /// <inheritdoc cref="EcsCommandBuffer.CopyFromInternal"/>
+    public BufferedEntity CopyFrom(Entity prefab, Entity groupKey)
+    {
+        return CommandBuffer.CopyFrom(Entity, prefab, groupKey);
     }
 }
