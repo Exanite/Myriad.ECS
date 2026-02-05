@@ -64,17 +64,16 @@ public partial class EcsCommandBuffer
         }
 
         // Mark entities as dead and send events
+        foreach (var componentId in archetype.Components)
+        {
+            var dispatcher = archetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+            dispatcher.OnComponentRemoved(recursiveCommandBuffer, archetype);
+        }
+
         foreach (var chunk in archetype.Chunks)
         {
             foreach (var entity in chunk.Entities)
             {
-                // Raise component removed events
-                foreach (var componentId in entity.ComponentIds)
-                {
-                    var dispatcher = archetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
-                    dispatcher.OnComponentRemoved(recursiveCommandBuffer, entity);
-                }
-
                 // Raise entity destroyed event
                 World.EventBus.Raise(new EntityDestroyedEvent(recursiveCommandBuffer, entity));
 
@@ -178,29 +177,22 @@ public partial class EcsCommandBuffer
                 dstArchetype.AddEntity(entityId, ref location);
 
                 // Write component values
-                if (entityState.Sets != null)
-                {
-                    foreach (var setter in entityState.Sets.Values)
-                    {
-                        state.Setters.Write(setter, location);
-                    }
-                }
+                WriteComponentValues(entityState, location);
 
-                // Raise component added/copied events
+                // Raise component copied/added events
                 if (entityState.Sets != null)
                 {
                     foreach (var (componentId, setterId) in entityState.Sets)
                     {
+                        // Did not already have the component, so we raise copied if needed, then added
                         var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
                         if (setterId.IsPrefab)
                         {
                             state.Lookup.SetContext(entityId, setterId.PrefabGroupKey);
                             dispatcher.OnComponentCopied(recursiveCommandBuffer, entity, state.Lookup);
                         }
-                        else
-                        {
-                            dispatcher.OnComponentAdded(recursiveCommandBuffer, entity);
-                        }
+
+                        dispatcher.OnComponentAdded(recursiveCommandBuffer, entity);
                     }
                 }
 
@@ -226,7 +218,6 @@ public partial class EcsCommandBuffer
                             var dispatcher = srcArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
                             dispatcher.OnComponentRemoved(recursiveCommandBuffer, entity);
                         }
-
                     }
                 }
 
@@ -236,18 +227,32 @@ public partial class EcsCommandBuffer
                 // Write component values
                 WriteComponentValues(entityState, location);
 
-                // Raise component added/modified events
+                // Raise component copied/added/modified events
                 if (entityState.Sets != null)
                 {
-                    foreach (var componentId in entityState.Sets.Keys)
+                    foreach (var (componentId, setterId) in entityState.Sets)
                     {
                         var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
                         if (srcArchetype.Components.Contains(componentId))
                         {
+                            // Already had the component, so we raise copied if needed, then modified
+                            if (setterId.IsPrefab)
+                            {
+                                state.Lookup.SetContext(entityId, setterId.PrefabGroupKey);
+                                dispatcher.OnComponentCopied(recursiveCommandBuffer, entity, state.Lookup);
+                            }
+
                             dispatcher.OnComponentModified(recursiveCommandBuffer, entity);
                         }
                         else
                         {
+                            // Did not already have the component, so we raise copied if needed, then added
+                            if (setterId.IsPrefab)
+                            {
+                                state.Lookup.SetContext(entityId, setterId.PrefabGroupKey);
+                                dispatcher.OnComponentCopied(recursiveCommandBuffer, entity, state.Lookup);
+                            }
+
                             dispatcher.OnComponentAdded(recursiveCommandBuffer, entity);
                         }
                     }
@@ -261,13 +266,20 @@ public partial class EcsCommandBuffer
                 // Write component values
                 WriteComponentValues(entityState, location);
 
-                // Raise component modified events
+                // Raise component copied/modified events
                 if (entityState.Sets != null)
                 {
                     var dstArchetype = location.Chunk.Archetype;
-                    foreach (var componentId in entityState.Sets.Keys)
+                    foreach (var (componentId, setterId) in entityState.Sets)
                     {
+                        // Already had the component, so we raise copied if needed, then modified
                         var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+                        if (setterId.IsPrefab)
+                        {
+                            state.Lookup.SetContext(entityId, setterId.PrefabGroupKey);
+                            dispatcher.OnComponentCopied(recursiveCommandBuffer, entity, state.Lookup);
+                        }
+
                         dispatcher.OnComponentModified(recursiveCommandBuffer, entity);
                     }
                 }

@@ -5,7 +5,7 @@ namespace Exanite.Myriad.Ecs.Events;
 /// <summary>
 /// Raised before a component is removed.
 /// </summary>
-public readonly ref struct ComponentRemoved<T> where T : IComponent
+public readonly ref struct ComponentRemovedEvent<T> where T : IComponent
 {
     /// <summary>
     /// A command buffer with which further operations can be enqueued.
@@ -20,7 +20,7 @@ public readonly ref struct ComponentRemoved<T> where T : IComponent
     public readonly Entity Entity;
     public readonly ref T Component;
 
-    public ComponentRemoved(EcsCommandBuffer commandBuffer, Entity entity, ref T component)
+    public ComponentRemovedEvent(EcsCommandBuffer commandBuffer, Entity entity, ref T component)
     {
         CommandBuffer = commandBuffer;
         Entity = entity;

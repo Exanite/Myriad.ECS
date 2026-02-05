@@ -132,6 +132,8 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
     public IEntityLookup AddTo(EcsWorld dstWorld, IArchetypeView view)
     {
         using var _ = AcquireCommandBuffer(out var commandBuffer);
+        using var __ = ListPool<Chunk>.Acquire(out var newChunks);
+
         var lookup = new EntityLookup();
         foreach (var srcArchetype in view.Archetypes)
         {
@@ -143,16 +145,19 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
             var dstArchetype = dstWorld.GetOrCreateArchetype(srcArchetype.Components.AsComponentIdSet(), srcArchetype.Hash);
             foreach (var srcChunk in srcArchetype.Chunks)
             {
-                dstArchetype.CreateChunkFrom(srcChunk, commandBuffer, lookup);
+                var newChunk = dstArchetype.CreateChunkFrom(srcChunk, commandBuffer, lookup);
+                newChunks.Add(newChunk);
             }
         }
 
-        foreach (var dstArchetype in dstWorld.Archetypes)
+        foreach (var dstChunk in newChunks)
         {
-            foreach (var componentId in dstArchetype.Lookup.ComponentIdByColumnIndex)
+            var componentIdByColumnIndex = dstChunk.Lookup.ComponentIdByColumnIndex;
+            foreach (var componentId in componentIdByColumnIndex)
             {
-                var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
-                dispatcher.OnComponentCopied(commandBuffer, dstArchetype, lookup);
+                var dispatcher = dstChunk.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+                dispatcher.OnComponentCopied(commandBuffer, dstChunk, lookup);
+                dispatcher.OnComponentAdded(commandBuffer, dstChunk);
             }
         }
 

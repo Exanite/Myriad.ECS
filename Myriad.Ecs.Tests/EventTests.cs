@@ -45,7 +45,7 @@ public class EventTests
         Assert.Equal(0, srcHandler.ComponentCopiedCount);
 
         Assert.Equal(entityAddCount, dstHandler.EntityCreatedCount);
-        Assert.Equal(0, dstHandler.ComponentAddedCount);
+        Assert.Equal(entityAddCount, dstHandler.ComponentAddedCount);
         Assert.Equal(entityAddCount, dstHandler.ComponentCopiedCount);
     }
 
@@ -99,7 +99,7 @@ public class EventTests
         Assert.Equal(0, srcHandler.ComponentCopiedCount);
 
         Assert.Equal(entityAddCount, dstHandler.EntityCreatedCount);
-        Assert.Equal(0, dstHandler.ComponentAddedCount);
+        Assert.Equal(entityAddCount, dstHandler.ComponentAddedCount);
         Assert.Equal(entityAddCount, dstHandler.ComponentCopiedCount);
     }
 
@@ -577,7 +577,7 @@ public class EventTests
         IEventHandler<ComponentCopiedEvent<Ecs0>>,
         IEventHandler<ComponentAddedEvent<Ecs0>>,
         IEventHandler<ComponentModifiedEvent<Ecs0>>,
-        IEventHandler<ComponentRemoved<Ecs0>>
+        IEventHandler<ComponentRemovedEvent<Ecs0>>
     {
         public int EntityCreatedCount { get; private set; }
         public int EntityDestroyedCount { get; private set; }
@@ -594,7 +594,7 @@ public class EventTests
             world.EventBus.Register<ComponentCopiedEvent<Ecs0>>(this);
             world.EventBus.Register<ComponentAddedEvent<Ecs0>>(this);
             world.EventBus.Register<ComponentModifiedEvent<Ecs0>>(this);
-            world.EventBus.Register<ComponentRemoved<Ecs0>>(this);
+            world.EventBus.Register<ComponentRemovedEvent<Ecs0>>(this);
 
             return this;
         }
@@ -624,7 +624,7 @@ public class EventTests
             ComponentModifiedCount++;
         }
 
-        public void OnEvent(ComponentRemoved<Ecs0> e)
+        public void OnEvent(ComponentRemovedEvent<Ecs0> e)
         {
             ComponentRemovedCount++;
         }

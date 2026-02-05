@@ -38,7 +38,7 @@ Major modifications:
 - Removal of phantom components
   - Use events or tagging instead.
 - Buffered entities do not need to be resolved
-  - Entity IDs are reserved as soon as an entity is pending creation
+  - Entity IDs are reserved as soon as an entity is pending creation.
 - Archetypes and chunks are exposed to the user
   - This is to allow for querying systems to be implemented on top of the base ECS.
 
@@ -54,15 +54,17 @@ The following events are provided:
 - Entity created - Raised when the entity is created, after its components are set
 - Entity destroyed - Raised when the entity is destroyed, before its components are removed
 - Component added - Raised when the component is set on an entity that never had the component
-- Component set - Raised when the component is set on an entity that already had the component
+- Component modified - Raised when the component is set on an entity that already had the component
+  - Modifications from outside the command buffer don't trigger this event.
 - Component copied - Raised when the component is copied from an existing entity to another entity
+  - Copied will be called before added or modified.
 - Component removed - Raised when the component is removed from an entity
 
 There are 2 ways of receiving events:
 1. Implementing the corresponding interface on the component
 2. Subscribing to the world event bus
 
-The component interface callbacks are intentionally simpler than the events raised by the event bus. \
+The component interface callbacks are intentionally simpler than the events raised by the event bus.
 
 This is because components should remain simple data storage containers. \
 The component events should be used to maintain data consistency.
