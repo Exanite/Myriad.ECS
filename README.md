@@ -2,10 +2,10 @@
 
 Exanite.Myriad.Ecs is a high performance Entity-Component-System (ECS) for C#.
 
-This is a fork of Myriad.ECS, which can be found here: https://github.com/martindevans/Myriad.ECS \
+This is a fork of Myriad.ECS. Original repository: https://github.com/martindevans/Myriad.ECS \
 This repository has been heavily modified for use in Exanite.Engine (engine is currently private).
 
-Also note, this ECS is not yet battle-tested. Many changes were made to the ECS recently (as of February 2026), and while I consider this ECS feature complete, there can still be many smaller issues that are yet to be discovered and fixed. Also, no benchmarks yet. Performance is not my current focus.
+Also note, this ECS is not yet battle-tested. Many changes were made to the ECS recently (as of February 2026), and while I consider this ECS feature complete, there can still be many smaller issues that are yet to be discovered and fixed.
 
 ## Design goals
 
@@ -71,6 +71,21 @@ The component events should be used to maintain data consistency.
 
 The intent is that systems subscribe to the event bus and implement component behavior that way. \
 To facilitate this, the events raised by the event bus provide a command buffer that can be used to further modify the world.
+
+## Performance
+
+Overall, query iteration speeds are extremely fast while structural changes are much slower.
+
+Comparison using https://github.com/Doraku/Ecs.CSharp.Benchmark:
+- These comparisons focus on the single-threaded, non-SIMD cases.
+- Iteration speed matches `Frent_QueryInline` for the 1 component case, slower for the 2/3 component case.
+  - It's easily possible to beat Frent's iteration speed if I use Frent's query iteration approach,
+    but Frent's approach causes high register pressure that is bad for real world usage.
+- Structural changes are slower than `SveltoECS` in general.
+  - This is likely due to how I'm handling events.
+  - I have not heavily optimized this area.
+
+My benchmark implementation and results are available here, however, because it requires internals from my engine, you will not be able to run it: https://github.com/Exanite/Ecs.CSharp.Benchmark/tree/exanite/results-exanite
 
 ## License
 

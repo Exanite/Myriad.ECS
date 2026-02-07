@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Exanite.Core.Runtime;
 using Exanite.Core.Utilities;
 using Exanite.Myriad.Ecs.Collections;
-using Exanite.Myriad.Ecs.CommandBuffers;
 using Exanite.Myriad.Ecs.Components;
 
 namespace Exanite.Myriad.Ecs.Worlds;
@@ -12,217 +12,219 @@ namespace Exanite.Myriad.Ecs.Worlds;
 /// </summary>
 public sealed class Archetype
 {
+    /// <inheritdoc cref="EntityStorage"/>
+    private EntityStorage storage;
+
+    /// <inheritdoc cref="ArchetypeInfo"/>
+    internal readonly ArchetypeInfo Info;
+
+    /// <summary>
+    /// The total number of entities in this archetype.
+    /// </summary>
+    private int entityCount;
+
+    internal readonly int Id;
+
     /// <summary>
     /// The world which this archetype belongs to.
     /// </summary>
     public EcsWorld World { get; }
 
     /// <summary>
-    /// The total number of entities in this archetype.
-    /// </summary>
-    public int EntityCount { get; private set; }
-
-    /// <summary>
-    /// The chunks contained in this archetype.
-    /// </summary>
-    public ReadOnlySpan<Chunk> Chunks => chunksList.AsSpan();
-
-    /// <summary>
-    /// The chunks contained in this archetype.
-    /// </summary>
-    /// <remarks>
-    /// Enumerating over this will allocate due to the List enumerator being boxed.
-    /// </remarks>
-    public IReadOnlyList<Chunk> ChunksList => chunksList;
-
-    /// <summary>
     /// The components of entities in this archetype.
     /// </summary>
-    public ImmutableOrderedListSet<ComponentId> Components { get; }
-
-    /// <inheritdoc cref="ArchetypeComponentLookup"/>
-    internal readonly ArchetypeComponentLookup Lookup;
+    public ImmutableOrderedListSet<ComponentId> Components => Info.Components;
 
     /// <summary>
-    /// A bloom filter of all the components in this archetype.
+    /// All entities in this archetype.
     /// </summary>
-    internal readonly ComponentBloomFilter ComponentsBloomFilter;
+    public ReadOnlySpan<Entity> Entities => storage.EntityColumn.AsSpan(0, entityCount);
 
     /// <summary>
-    /// The hash of all components IDs in this archetype.
+    /// The max number of entities that can be stored in this archetype without resizing.
     /// </summary>
-    internal ArchetypeHash Hash { get; }
+    public int Capacity => storage.Capacity;
 
-    /// <summary>
-    /// All chunks in this archetype.
-    /// </summary>
-    private readonly List<Chunk> chunksList = [];
-
-    /// <summary>
-    /// A list of chunks which might have space to put an entity in.
-    /// </summary>
-    private readonly List<Chunk> chunksWithSpace = [];
-
-    /// <summary>
-    /// A list of empty chunks that have been removed from this archetype.
-    /// </summary>
-    private readonly Stack<Chunk> spareChunks = new(EcsConstants.ChunkHotSpareCount);
-
-    internal Archetype(EcsWorld world, ImmutableOrderedListSet<ComponentId> components)
+    internal Archetype(int id, EcsWorld world, ImmutableOrderedListSet<ComponentId> components)
     {
+        Id = id;
         World = world;
-        Components = components;
-        ComponentsBloomFilter = components.ToBloomFilter();
+        Info = new ArchetypeInfo(components);
+        storage = new EntityStorage(in Info, EcsConstants.ArchetypeInitialCapacity);
+    }
 
-        // Calculate archetype hash
-        foreach (var component in components)
+    /// <summary>
+    /// Ensures that the archetype has at least the specified capacity.
+    /// </summary>
+    public void EnsureCapacity(int capacity)
+    {
+        if (storage.Capacity >= capacity)
         {
-            Hash = Hash.Toggle(component);
+            return;
         }
 
-        // Initialize component lookup
-        Lookup = new ArchetypeComponentLookup(components);
+        // Save old storage
+        var oldStorage = storage;
+        var oldRange = new EntityStorageRange(in oldStorage, 0, entityCount);
+
+        // Reallocate storage
+        capacity = M.GetNextPowerOfTwo(capacity);
+        storage = new EntityStorage(in Info, capacity);
+
+        // Copy from old to new
+        var newRange = new EntityStorageRange(in storage, 0, entityCount);
+        oldRange.CopyAllTo(newRange);
     }
 
-    /// <summary>
-    /// Destroy every Entity in this archetype
-    /// </summary>
-    internal void Clear()
+    internal void AddEntity(EntityId entityId, ref EntityLocation location)
     {
-        // Clear all the chunks
-        foreach (var chunk in chunksList)
-        {
-            chunk.Clear();
-        }
+        EnsureCapacity(entityCount + 1);
 
-        // Move some chunks to hot spares and then destroy the rest
-        foreach (var chunk in chunksList)
-        {
-            if (spareChunks.Count < EcsConstants.ChunkHotSpareCount)
-            {
-                spareChunks.Push(chunk);
-            }
-            else
-            {
-                break;
-            }
-        }
-        chunksWithSpace.Clear();
-        chunksList.Clear();
+        // Use the next free slot
+        var entityIndex = entityCount++;
 
-        // Done! No entities left.
-        EntityCount = 0;
-    }
+        // Store the entity in this archetype
+        storage.EntityColumn[entityIndex] = entityId.ToEntity(World);
 
-    /// <summary>
-    /// Copies the entities from the source chunk to a new chunk in this archetype.
-    /// The source chunk must have the same component set.
-    /// </summary>
-    /// <remarks>
-    /// This is designed to be called by <see cref="EcsWorld.AddTo(EcsWorld, IArchetypeView)"/>.
-    /// </remarks>
-    internal Chunk CreateChunkFrom(Chunk srcChunk, EcsCommandBuffer recursiveCommandBuffer, EntityLookup lookup)
-    {
-        EntityCount += srcChunk.Entities.Length;
-
-        var newChunk = GetEmptyChunk();
-        newChunk.CopyFrom(srcChunk, recursiveCommandBuffer, lookup);
-
-        return newChunk;
-    }
-
-    /// <summary>
-    /// Find a chunk with space and add the given entity to it.
-    /// </summary>
-    /// <param name="entity">Entity to add to a chunk</param>
-    /// <param name="location">Location will be mutated to point to the new location</param>
-    internal void AddEntity(EntityId entity, ref EntityLocation location)
-    {
-        EntityCount++;
-
-        var chunk = GetChunkWithSpace();
-        chunk.AddEntity(entity, ref location);
-    }
-
-    /// <summary>
-    /// Returns a chunk that is not full.
-    /// </summary>
-    private Chunk GetChunkWithSpace()
-    {
-        chunksWithSpace.RemoveAll(static chunk => chunk.IsFull);
-        if (chunksWithSpace.Count > 0)
-        {
-            return chunksWithSpace[0];
-        }
-
-        return GetEmptyChunk();
-    }
-
-    /// <summary>
-    /// Returns a chunk that is completely empty.
-    /// </summary>
-    private Chunk GetEmptyChunk()
-    {
-        var newChunk = spareChunks.Count > 0 ? spareChunks.Pop() : new Chunk(this);
-        chunksList.Add(newChunk);
-        chunksWithSpace.Add(newChunk);
-
-        return newChunk;
+        // Update the storage location to refer to this archetype
+        location.IndexInArchetype = entityIndex;
+        location.Archetype = this;
     }
 
     internal void RemoveEntity(EntityLocation location)
     {
-        // Remove the entity from the chunk, component data is lost after this point
-        location.Chunk.RemoveEntity(location);
+        var currentEntityIndex = location.IndexInArchetype;
+        var currentRange = new EntityStorageRange(in storage, currentEntityIndex, 1);
 
-        // Execute handler for when an entity is removed from a chunk
-        OnChunkEntityRemoved(location.Chunk);
+        // We are guaranteed to have at least 1 entity
+        var lastEntityIndex = entityCount - 1;
+        var lastRange = new EntityStorageRange(in storage, lastEntityIndex, 1);
+
+        var isSameLocation = currentEntityIndex == lastEntityIndex;
+        if (!isSameLocation)
+        {
+            // Update location
+            var lastEntity = storage.EntityColumn[lastEntityIndex];
+            ref var lastLocation = ref World.Entities.GetLocation(lastEntity.EntityId);
+            lastLocation.IndexInArchetype = currentEntityIndex;
+
+            // Swap last to current
+            lastRange.CopyAllTo(currentRange);
+        }
+
+        // Clear last
+        lastRange.Clear();
+
+        // Update entity count
+        entityCount--;
     }
 
     internal void MigrateEntity(EntityId entity, Archetype dstArchetype, ref EntityLocation location)
     {
         GuardUtility.IsFalse(dstArchetype == this, "Destination archetype is the same as the source archetype");
 
-        // Do the actual copying
-        var srcChunk = location.Chunk;
-        srcChunk.MigrateTo(entity, ref location, dstArchetype);
+        // Copy current location so we can use it later
+        var srcLocation = location;
 
-        // Execute handler for when an entity is removed from a chunk
-        OnChunkEntityRemoved(srcChunk);
+        // Move the entity to the new archetype
+        dstArchetype.AddEntity(entity, ref location);
+
+        // Copy across everything that exists in the destination archetype
+        for (var i = 0; i < storage.ComponentColumns.Length; i++)
+        {
+            var componentId = Info.ComponentIdByColumnIndex[i].Value;
+
+            // Skip if the target archetype does not have this component
+            if (componentId >= dstArchetype.Info.ColumnIndexByComponentId.Length || dstArchetype.Info.ColumnIndexByComponentId[componentId] == -1)
+            {
+                continue;
+            }
+
+            // Copy from source archetype to destination
+            var srcArray = storage.ComponentColumns[i];
+            var dstArray = dstArchetype.storage.ComponentColumns[dstArchetype.Info.ColumnIndexByComponentId[componentId]];
+            Array.Copy(srcArray, srcLocation.IndexInArchetype, dstArray, location.IndexInArchetype, 1);
+        }
+
+        // Remove the entity from this archetype (using the old saved location)
+        RemoveEntity(srcLocation);
     }
 
-    private void OnChunkEntityRemoved(Chunk chunk)
+    /// <summary>
+    /// Copies the component data from the source archetype as new entities.
+    /// </summary>
+    internal void AddFrom(Archetype srcArchetype, EntityLookup lookup)
     {
-        // Decrease archetype entity count
-        EntityCount--;
+        EnsureCapacity(entityCount + srcArchetype.Entities.Length);
 
-        switch (chunk.Entities.Length)
+        // Copy component data
+        var srcRange = new EntityStorageRange(in srcArchetype.storage, 0, srcArchetype.Entities.Length);
+        var dstRange = new EntityStorageRange(in storage, entityCount, srcArchetype.Entities.Length);
+        srcRange.CopyComponentsTo(dstRange);
+
+        // Allocate new entity ids
+        for (var i = 0; i < srcArchetype.Entities.Length; i++)
         {
-            // If the chunk is empty remove it from this archetype entirely
-            case 0:
-            {
-                chunksWithSpace.Remove(chunk);
-                chunksList.Remove(chunk);
-                if (spareChunks.Count < EcsConstants.ChunkHotSpareCount)
-                {
-                    spareChunks.Push(chunk);
-                }
+            // Allocate an entity id and point it to this archetype
+            ref var location = ref World.Entities.AcquireId(out var entityId);
+            location.IndexInArchetype = dstRange.StartIndex + i;
+            location.Archetype = this;
 
-                break;
-            }
+            // Store the entity in this archetype
+            storage.EntityColumn[dstRange.StartIndex + i] = entityId.ToEntity(World);
 
-            // If the chunk was previously full and now isn't, add it to the set of chunks with space
-            case EcsConstants.ChunkEntityCount - 1:
-            {
-                chunksWithSpace.Add(chunk);
-                break;
-            }
+            // Add the entity pair to the lookup dictionary
+            var originalEntity = srcArchetype.Entities[i];
+            var newEntity = entityId.ToEntity(World);
+            lookup.Add(originalEntity, newEntity);
         }
+
+        // Update entity count
+        entityCount += srcArchetype.entityCount;
+    }
+
+    /// <summary>
+    /// Destroy every entity in this archetype.
+    /// </summary>
+    internal void Clear()
+    {
+        var range = new EntityStorageRange(in storage, 0, entityCount);
+        range.Clear();
+
+        entityCount = 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Span<T> GetSpan<T>() where T : IComponent
+    {
+        // Unsafe.As() is safe because we have to get the column index using the component id
+        // If the component id is invalid, then we will get an index out of bounds
+        var componentId = ComponentId.Get<T>();
+        var array = GetComponentArray(componentId);
+        return Unsafe.As<Array, T[]>(ref array).AsSpan(0, entityCount);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal Array GetComponentArray(ComponentId id)
+    {
+        return storage.ComponentColumns[Info.ColumnIndexByComponentId[id.Value]];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ref T Get<T>(int entityIndex) where T : IComponent
+    {
+        return ref GetSpan<T>()[entityIndex];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal Ref<T> GetRef<T>(int entityIndex) where T : IComponent
+    {
+        return new Ref<T>(ref Get<T>(entityIndex));
     }
 
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        return Hash.GetHashCode();
+        return Info.Hash.GetHashCode();
     }
 }

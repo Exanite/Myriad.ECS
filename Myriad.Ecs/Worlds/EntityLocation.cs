@@ -8,12 +8,12 @@ internal struct EntityLocation
     public uint Version;
 
     /// <summary>
-    /// The chunk that contains this entity.
+    /// The archetype that contains this entity.
     /// </summary>
-    public Chunk Chunk;
+    public Archetype Archetype;
 
     /// <summary>
-    /// The entity index in the chunk which contains this entity.
+    /// The location of the entity within the archetype it is stored in.
     /// </summary>
-    public int IndexInChunk;
+    public int IndexInArchetype;
 }

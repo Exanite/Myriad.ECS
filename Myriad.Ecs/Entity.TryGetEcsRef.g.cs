@@ -26,7 +26,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -54,7 +54,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -89,7 +89,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -131,7 +131,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -180,7 +180,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -236,7 +236,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -299,7 +299,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -369,7 +369,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -446,7 +446,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -530,7 +530,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -621,7 +621,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -719,7 +719,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -824,7 +824,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -936,7 +936,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -1055,7 +1055,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))
@@ -1181,7 +1181,7 @@ public readonly partial record struct Entity
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 
         var componentId0 = ComponentId.Get<T0>();
         if (!components.Contains(componentId0))

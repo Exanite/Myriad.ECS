@@ -80,15 +80,9 @@ public class EventTests
 
         using (dstWorld.AcquireCommandBuffer(out var commandBuffer))
         {
-            foreach (var archetype in srcWorld.Archetypes)
+            foreach (var entity in srcWorld.EnumerateEntities())
             {
-                foreach (var chunk in archetype.Chunks)
-                {
-                    foreach (var entity in chunk.Entities)
-                    {
-                        commandBuffer.Create().CopyFrom(entity);
-                    }
-                }
+                commandBuffer.Create().CopyFrom(entity);
             }
 
             commandBuffer.Execute();
@@ -143,15 +137,9 @@ public class EventTests
 
         // Destroy entities
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Destroy(entity);
-                }
-            }
+            commandBuffer.Destroy(entity);
         }
         commandBuffer.Destroy(allEntitiesQuery);
 
@@ -205,15 +193,9 @@ public class EventTests
 
         // Destroy entities
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Destroy(entity);
-                }
-            }
+            commandBuffer.Destroy(entity);
         }
         commandBuffer.Destroy(allEntitiesQuery);
 
@@ -267,15 +249,9 @@ public class EventTests
 
         // Remove components
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Remove<Ecs0>(entity);
-                }
-            }
+            commandBuffer.Remove<Ecs0>(entity);
         }
 
         commandBuffer.Execute();
@@ -322,15 +298,9 @@ public class EventTests
 
         // Set components
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Set(entity, new Ecs0());
-                }
-            }
+            commandBuffer.Set(entity, new Ecs0());
         }
 
         commandBuffer.Execute();
@@ -358,15 +328,9 @@ public class EventTests
 
         // Set components
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Set(entity, new Ecs0());
-                }
-            }
+            commandBuffer.Set(entity, new Ecs0());
         }
 
         commandBuffer.Execute();
@@ -393,30 +357,18 @@ public class EventTests
 
         // Set components
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Set(entity, new Ecs0());
-                }
-            }
+            commandBuffer.Set(entity, new Ecs0());
         }
 
         commandBuffer.Execute();
         Assert.Equal(entityAddCount, handler.ComponentAddedCount);
 
         // Set components again
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Set(entity, new Ecs0());
-                }
-            }
+            commandBuffer.Set(entity, new Ecs0());
         }
 
         commandBuffer.Execute();
@@ -466,18 +418,12 @@ public class EventTests
 
         // Set components
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer
-                        .Use(entity)
-                        .Set(new Ecs0())
-                        .Set(new Ecs0());
-                }
-            }
+            commandBuffer
+                .Use(entity)
+                .Set(new Ecs0())
+                .Set(new Ecs0());
         }
 
         commandBuffer.Execute();
@@ -505,18 +451,13 @@ public class EventTests
 
         // Modify entity and destroy entity
         var allEntitiesQuery = new QueryFilter().Build(world);
-        foreach (var archetype in allEntitiesQuery.Archetypes)
+        foreach (var entity in allEntitiesQuery.EnumerateEntities())
         {
-            foreach (var chunk in archetype.Chunks)
-            {
-                foreach (var entity in chunk.Entities)
-                {
-                    commandBuffer.Set(entity, new Ecs0());
-                    commandBuffer.Set(entity, new Ecs0());
+            commandBuffer.Use(entity)
+                .Set(new Ecs0())
+                .Set(new Ecs1());
 
-                    commandBuffer.Destroy(entity);
-                }
-            }
+            commandBuffer.Destroy(entity);
         }
 
         commandBuffer.Execute();

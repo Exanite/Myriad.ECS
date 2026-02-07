@@ -8,6 +8,18 @@ namespace Exanite.Myriad.Ecs.Collections;
 /// <summary>
 /// A list which stores data in "segments", this removes the need for copying data when the list grows.
 /// </summary>
+/// <remarks>
+/// This data structure is not fully thread safe and is designed for <see cref="EntityManager"/>.
+/// Specifically, it assumes that data corresponding to indices added by <see cref="Grow"/> are never
+/// accessed before the <see cref="Grow"/> operation is fully completed.
+/// <para/>
+/// <see cref="EntityManager.AcquireId"/> does this by growing this list, then returning an ID pointing to a new index.
+/// Both operations are done using the same external lock.
+/// <para/>
+/// Behavior is undefined if an index not returned by <see cref="EntityManager.AcquireId"/> is used.
+/// <para/>
+/// Reference stability to values returned by the indexer is guaranteed.
+/// </remarks>
 internal class SegmentedList<T>
 {
     private readonly Lock growLock = new();
@@ -61,7 +73,7 @@ internal class SegmentedList<T>
     public void Grow()
     {
         using var _ = growLock.EnterScope();
-        
+
         T[][] newSegments = [..segments, new T[SegmentCapacity]];
         Interlocked.Exchange(ref segments, newSegments);
     }

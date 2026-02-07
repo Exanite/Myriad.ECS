@@ -40,7 +40,7 @@ for (var paramCount = 1; paramCount <= 16; paramCount++)
         }
 
         ref var location = ref locationRef.Value;
-        var components = location.Chunk.Archetype.Components;
+        var components = location.Archetype.Components;
 <#
     for (var t = 0; t < paramCount; t++)
     {
@@ -59,7 +59,7 @@ for (var paramCount = 1; paramCount <= 16; paramCount++)
     for (var t = 0; t < paramCount; t++)
     {
 #>
-        ref<#= t #> = location.Chunk.GetRef<T<#= t #>>(location.IndexInChunk, componentId<#= t #>);
+        ref<#= t #> = location.Archetype.GetRef<T<#= t #>>(location.IndexInArchetype);
 <#
     }
 #>

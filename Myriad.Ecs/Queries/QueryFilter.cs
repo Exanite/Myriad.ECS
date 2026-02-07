@@ -64,21 +64,22 @@ public sealed class QueryFilter
             exactlyOneFilter.ToImmutableSet(),
             notAllFilter.ToImmutableSet());
 
-        if (!world.QueryViewCache.TryGetValue(key, out var query))
+        using (world.QueryViewCacheLock.EnterScope())
         {
-            query = new QueryView(
-                world,
-                includeFilter.ToImmutableSet(),
-                excludeFilter.ToImmutableSet(),
-                atLeastOneFilter.ToImmutableSet(),
-                exactlyOneFilter.ToImmutableSet(),
-                notAllFilter.ToImmutableSet()
-            );
+            if (!world.QueryViewCache.TryGetValue(key, out var query))
+            {
+                world.QueryViewCache[key] = query = new QueryView(
+                    world,
+                    includeFilter.ToImmutableSet(),
+                    excludeFilter.ToImmutableSet(),
+                    atLeastOneFilter.ToImmutableSet(),
+                    exactlyOneFilter.ToImmutableSet(),
+                    notAllFilter.ToImmutableSet()
+                );
+            }
 
-            world.QueryViewCache[key] = query;
+            return query;
         }
-
-        return query;
     }
 
     /// <summary>

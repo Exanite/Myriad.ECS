@@ -330,6 +330,7 @@ public sealed partial class EcsCommandBuffer
         IsExecuting = true;
         try
         {
+            World.OnSyncPoint();
             ExecuteInternal();
         }
         finally

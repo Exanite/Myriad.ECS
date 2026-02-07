@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Exanite.Myriad.Ecs.CommandBuffers;
 using Exanite.Myriad.Ecs.Events;
 using Exanite.Myriad.Ecs.Worlds;
@@ -16,20 +17,16 @@ public abstract class ComponentDispatcher
     public abstract void Invoke<TAction>(TAction action) where TAction : IComponentAction;
     public abstract void Invoke<TAction, TInput>(TAction action, TInput input) where TAction : IComponentAction<TInput>;
 
-    internal abstract void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, IEntityLookup lookup);
-    internal abstract void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk, IEntityLookup lookup);
+    internal abstract void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length, IEntityLookup lookup);
     internal abstract void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Entity entity, IEntityLookup lookup);
 
-    internal abstract void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype);
-    internal abstract void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk);
+    internal abstract void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length);
     internal abstract void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Entity entity);
 
-    internal abstract void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype);
-    internal abstract void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk);
+    internal abstract void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length);
     internal abstract void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Entity entity);
 
-    internal abstract void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype);
-    internal abstract void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk);
+    internal abstract void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length);
     internal abstract void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Entity entity);
 
     internal static void ComponentSelfReference<T>(ref T component, Entity entity) where T : IComponent, IComponentSelfReference<T>
@@ -140,30 +137,17 @@ internal class ComponentDispatcher<T> : ComponentDispatcher where T : IComponent
     public override void Invoke<TAction>(TAction action) => action.Invoke<T>();
     public override void Invoke<TAction, TInput>(TAction action, TInput input) => action.Invoke<T>(input);
 
-    internal override void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, IEntityLookup lookup)
+    internal override void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length, IEntityLookup lookup)
     {
-        if (archetype.EntityCount == 0)
+        if (length == 0)
         {
             return;
         }
 
         var world = archetype.World;
-        RaiseInterfaceSelfReference(archetype);
-        RaiseInterfaceCopied(archetype, lookup, world);
-        RaiseWorldCopied(recursiveCommandBuffer, archetype, lookup, world);
-    }
-
-    internal override void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk, IEntityLookup lookup)
-    {
-        if (chunk.Entities.Length == 0)
-        {
-            return;
-        }
-
-        var world = chunk.Archetype.World;
-        RaiseInterfaceSelfReference(chunk);
-        RaiseInterfaceCopied(chunk, lookup, world);
-        RaiseWorldCopied(recursiveCommandBuffer, chunk, lookup, world);
+        RaiseInterfaceSelfReference(archetype, startIndex, length);
+        RaiseInterfaceCopied(archetype, startIndex, length, lookup, world);
+        RaiseWorldCopied(recursiveCommandBuffer, archetype, startIndex, length, lookup, world);
     }
 
     internal override void OnComponentCopied(EcsCommandBuffer recursiveCommandBuffer, Entity entity, IEntityLookup lookup)
@@ -184,30 +168,17 @@ internal class ComponentDispatcher<T> : ComponentDispatcher where T : IComponent
         world.EventBus.Raise(new ComponentCopiedEvent<T>(recursiveCommandBuffer, entity, ref component, lookup));
     }
 
-    internal override void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype)
+    internal override void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length)
     {
-        if (archetype.EntityCount == 0)
+        if (length == 0)
         {
             return;
         }
 
         var world = archetype.World;
-        RaiseInterfaceSelfReference(archetype);
-        RaiseInterfaceAdded(archetype);
-        RaiseWorldAdded(recursiveCommandBuffer, archetype, world);
-    }
-
-    internal override void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk)
-    {
-        if (chunk.Entities.Length == 0)
-        {
-            return;
-        }
-
-        var world = chunk.Archetype.World;
-        RaiseInterfaceSelfReference(chunk);
-        RaiseInterfaceAdded(chunk);
-        RaiseWorldAdded(recursiveCommandBuffer, chunk, world);
+        RaiseInterfaceSelfReference(archetype, startIndex, length);
+        RaiseInterfaceAdded(archetype, startIndex, length);
+        RaiseWorldAdded(recursiveCommandBuffer, archetype, startIndex, length, world);
     }
 
     internal override void OnComponentAdded(EcsCommandBuffer recursiveCommandBuffer, Entity entity)
@@ -228,28 +199,16 @@ internal class ComponentDispatcher<T> : ComponentDispatcher where T : IComponent
         world.EventBus.Raise(new ComponentAddedEvent<T>(recursiveCommandBuffer, entity, ref component));
     }
 
-    internal override void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype)
+    internal override void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length)
     {
-        if (archetype.EntityCount == 0)
+        if (length == 0)
         {
             return;
         }
 
         var world = archetype.World;
-        RaiseInterfaceModified(archetype);
-        RaiseWorldModified(recursiveCommandBuffer, archetype, world);
-    }
-
-    internal override void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk)
-    {
-        if (chunk.Entities.Length == 0)
-        {
-            return;
-        }
-
-        var world = chunk.Archetype.World;
-        RaiseInterfaceModified(chunk);
-        RaiseWorldModified(recursiveCommandBuffer, chunk, world);
+        RaiseInterfaceModified(archetype, startIndex, length);
+        RaiseWorldModified(recursiveCommandBuffer, archetype, startIndex, length, world);
     }
 
     internal override void OnComponentModified(EcsCommandBuffer recursiveCommandBuffer, Entity entity)
@@ -265,30 +224,18 @@ internal class ComponentDispatcher<T> : ComponentDispatcher where T : IComponent
         world.EventBus.Raise(new ComponentModifiedEvent<T>(recursiveCommandBuffer, entity, ref component));
     }
 
-    internal override void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype)
+    internal override void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length)
     {
-        if (archetype.EntityCount == 0)
-        {
-            return;
-        }
-
-        var world = archetype.World;
-        RaiseWorldRemoved(recursiveCommandBuffer, archetype, world);
-        RaiseInterfaceRemoved(archetype);
-    }
-
-    internal override void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk)
-    {
-        if (chunk.Entities.Length == 0)
+        if (length == 0)
         {
             return;
         }
 
         // Notify world first before component
         // Component does the final cleanup
-        var world = chunk.Archetype.World;
-        RaiseWorldRemoved(recursiveCommandBuffer, chunk, world);
-        RaiseInterfaceRemoved(chunk);
+        var world = archetype.World;
+        RaiseWorldRemoved(recursiveCommandBuffer, archetype, startIndex, length, world);
+        RaiseInterfaceRemoved(archetype, startIndex, length);
     }
 
     internal override void OnComponentRemoved(EcsCommandBuffer recursiveCommandBuffer, Entity entity)
@@ -306,224 +253,132 @@ internal class ComponentDispatcher<T> : ComponentDispatcher where T : IComponent
         }
     }
 
-    private void RaiseInterfaceSelfReference(Archetype archetype)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void RaiseInterfaceSelfReference(Archetype archetype, int startIndex, int length)
     {
         if (componentSelfReference == null)
         {
             return;
         }
 
-        foreach (var chunk in archetype.Chunks)
+        var components = archetype.GetSpan<T>();
+        var entities = archetype.Entities;
+        for (var i = 0; i < length; i++)
         {
-            RaiseInterfaceSelfReference(chunk);
+            var entityIndex = startIndex + i;
+            componentSelfReference!.Invoke(ref components[entityIndex], entities[entityIndex]);
         }
     }
 
-    private void RaiseInterfaceSelfReference(Chunk chunk)
-    {
-        if (componentSelfReference == null)
-        {
-            return;
-        }
-
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            componentSelfReference!.Invoke(ref components[i], entities[i]);
-        }
-    }
-
-    private void RaiseInterfaceCopied(Archetype archetype, IEntityLookup lookup, EcsWorld world)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void RaiseInterfaceCopied(Archetype archetype, int startIndex, int length, IEntityLookup lookup, EcsWorld world)
     {
         if (componentCopied == null)
         {
             return;
         }
 
-        foreach (var chunk in archetype.Chunks)
+        var components = archetype.GetSpan<T>();
+        for (var i = 0; i < length; i++)
         {
-            RaiseInterfaceCopied(chunk, lookup, world);
+            var entityIndex = startIndex + i;
+            componentCopied!.Invoke(ref components[entityIndex], world, lookup);
         }
     }
 
-    private void RaiseInterfaceCopied(Chunk chunk, IEntityLookup lookup, EcsWorld world)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void RaiseWorldCopied(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length, IEntityLookup lookup, EcsWorld world)
     {
-        if (componentCopied == null)
+        var components = archetype.GetSpan<T>();
+        var entities = archetype.Entities;
+        for (var i = 0; i < length; i++)
         {
-            return;
-        }
-
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            componentCopied!.Invoke(ref components[i], world, lookup);
+            var entityIndex = startIndex + i;
+            world.EventBus.Raise(new ComponentCopiedEvent<T>(recursiveCommandBuffer, entities[entityIndex], ref components[entityIndex], lookup));
         }
     }
 
-    private static void RaiseWorldCopied(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, IEntityLookup lookup, EcsWorld world)
-    {
-        foreach (var chunk in archetype.Chunks)
-        {
-            RaiseWorldCopied(recursiveCommandBuffer, chunk, lookup, world);
-        }
-    }
-
-    private static void RaiseWorldCopied(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk, IEntityLookup lookup, EcsWorld world)
-    {
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            world.EventBus.Raise(new ComponentCopiedEvent<T>(recursiveCommandBuffer, entities[i], ref components[i], lookup));
-        }
-    }
-
-    private void RaiseInterfaceAdded(Archetype archetype)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void RaiseInterfaceAdded(Archetype archetype, int startIndex, int length)
     {
         if (componentAdded == null)
         {
             return;
         }
 
-        foreach (var chunk in archetype.Chunks)
+        var components = archetype.GetSpan<T>();
+        for (var i = 0; i < length; i++)
         {
-            RaiseInterfaceAdded(chunk);
+            var entityIndex = startIndex + i;
+            componentAdded!.Invoke(ref components[entityIndex]);
         }
     }
 
-    private void RaiseInterfaceAdded(Chunk chunk)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void RaiseWorldAdded(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length, EcsWorld world)
     {
-        if (componentAdded == null)
+        var components = archetype.GetSpan<T>();
+        var entities = archetype.Entities;
+        for (var i = 0; i < length; i++)
         {
-            return;
-        }
-
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            componentAdded!.Invoke(ref components[i]);
+            var entityIndex = startIndex + i;
+            world.EventBus.Raise(new ComponentAddedEvent<T>(recursiveCommandBuffer, entities[entityIndex], ref components[entityIndex]));
         }
     }
 
-    private static void RaiseWorldAdded(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, EcsWorld world)
-    {
-        foreach (var chunk in archetype.Chunks)
-        {
-            RaiseWorldAdded(recursiveCommandBuffer, chunk, world);
-        }
-    }
-
-    private static void RaiseWorldAdded(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk, EcsWorld world)
-    {
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            world.EventBus.Raise(new ComponentAddedEvent<T>(recursiveCommandBuffer, entities[i], ref components[i]));
-        }
-    }
-
-    private void RaiseInterfaceModified(Archetype archetype)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void RaiseInterfaceModified(Archetype archetype, int startIndex, int length)
     {
         if (componentModified == null)
         {
             return;
         }
 
-        foreach (var chunk in archetype.Chunks)
+        var components = archetype.GetSpan<T>();
+        for (var i = 0; i < length; i++)
         {
-            RaiseInterfaceModified(chunk);
+            var entityIndex = startIndex + i;
+            componentModified!.Invoke(ref components[entityIndex]);
         }
     }
 
-    private void RaiseInterfaceModified(Chunk chunk)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void RaiseWorldModified(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length, EcsWorld world)
     {
-        if (componentModified == null)
+        var components = archetype.GetSpan<T>();
+        var entities = archetype.Entities;
+        for (var i = 0; i < length; i++)
         {
-            return;
-        }
-
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            componentModified!.Invoke(ref components[i]);
+            var entityIndex = startIndex + i;
+            world.EventBus.Raise(new ComponentModifiedEvent<T>(recursiveCommandBuffer, entities[entityIndex], ref components[entityIndex]));
         }
     }
 
-    private static void RaiseWorldModified(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, EcsWorld world)
-    {
-        foreach (var chunk in archetype.Chunks)
-        {
-            RaiseWorldModified(recursiveCommandBuffer, chunk, world);
-        }
-    }
-
-    private static void RaiseWorldModified(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk, EcsWorld world)
-    {
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            world.EventBus.Raise(new ComponentModifiedEvent<T>(recursiveCommandBuffer, entities[i], ref components[i]));
-        }
-    }
-
-    private void RaiseInterfaceRemoved(Archetype archetype)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void RaiseInterfaceRemoved(Archetype archetype, int startIndex, int length)
     {
         if (componentRemoved == null)
         {
             return;
         }
 
-        foreach (var chunk in archetype.Chunks)
+        var components = archetype.GetSpan<T>();
+        for (var i = 0; i < length; i++)
         {
-            RaiseInterfaceRemoved(chunk);
+            var entityIndex = startIndex + i;
+            componentRemoved!.Invoke(ref components[entityIndex]);
         }
     }
 
-    private void RaiseInterfaceRemoved(Chunk chunk)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void RaiseWorldRemoved(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, int startIndex, int length, EcsWorld world)
     {
-        if (componentRemoved == null)
+        var components = archetype.GetSpan<T>();
+        var entities = archetype.Entities;
+        for (var i = 0; i < length; i++)
         {
-            return;
-        }
-
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            componentRemoved!.Invoke(ref components[i]);
-        }
-    }
-
-    private static void RaiseWorldRemoved(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype, EcsWorld world)
-    {
-        foreach (var chunk in archetype.Chunks)
-        {
-            RaiseWorldRemoved(recursiveCommandBuffer, chunk, world);
-        }
-    }
-
-    private static void RaiseWorldRemoved(EcsCommandBuffer recursiveCommandBuffer, Chunk chunk, EcsWorld world)
-    {
-        var components = chunk.GetSpan<T>();
-        var entities = chunk.Entities;
-
-        for (var i = 0; i < entities.Length; i++)
-        {
-            world.EventBus.Raise(new ComponentRemovedEvent<T>(recursiveCommandBuffer, entities[i], ref components[i]));
+            var entityIndex = startIndex + i;
+            world.EventBus.Raise(new ComponentRemovedEvent<T>(recursiveCommandBuffer, entities[entityIndex], ref components[entityIndex]));
         }
     }
 }

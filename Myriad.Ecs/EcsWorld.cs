@@ -9,6 +9,7 @@ using Exanite.Core.Utilities;
 using Exanite.Myriad.Ecs.Collections;
 using Exanite.Myriad.Ecs.CommandBuffers;
 using Exanite.Myriad.Ecs.Components;
+using Exanite.Myriad.Ecs.Events;
 using Exanite.Myriad.Ecs.Queries;
 using Exanite.Myriad.Ecs.Worlds;
 
@@ -22,6 +23,30 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
     private static readonly Lock IdLock = new();
     private static int NextWorldId = 1;
 
+    internal EntityManager Entities = new();
+
+    private readonly List<Archetype> archetypes = [];
+    private readonly Dictionary<ArchetypeHash, List<Archetype>> archetypesByHash = [];
+
+    /// <summary>
+    /// Must be read using <see cref="Volatile"/>.
+    /// </summary>
+    /// <remarks>
+    /// Guaranteed to be the same as the archetype count,
+    /// however, since this is a field, it can be read using <see cref="Volatile"/>.
+    /// </remarks>
+    internal int Version;
+
+    internal readonly Lock QueryViewCacheLock = new();
+    internal readonly Dictionary<QueryCacheKey, QueryView> QueryViewCache = new();
+    private readonly QueryView allEntitiesQuery;
+
+    private readonly Pool<EcsCommandBuffer> commandBufferPool;
+    private readonly HashSet<EcsCommandBuffer> activeCommandBuffers = new();
+
+    private readonly Lock recycleLock = new();
+    private readonly List<List<Archetype>> archetypeListsToRecycle = new();
+
     public bool IsDisposing { get; private set; }
     public bool IsDisposed { get; private set; }
 
@@ -34,22 +59,14 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
     /// but this is mainly for debugging and
     /// you have to create a lot of worlds to overflow.
     /// </remarks>
-    public readonly int WorldId;
-
-    internal EntityManager Entities = new();
-
-    private readonly List<Archetype> archetypes = [];
-    private readonly Dictionary<ArchetypeHash, List<Archetype>> archetypesByHash = [];
-
-    internal readonly Dictionary<QueryCacheKey, QueryView> QueryViewCache = new();
-    private readonly QueryView allEntitiesQuery;
-
-    private readonly Pool<EcsCommandBuffer> commandBufferPool;
-    private readonly HashSet<EcsCommandBuffer> activeCommandBuffers = new();
+    public readonly int Id;
 
     /// <summary>
     /// The archetypes stored by this world.
     /// </summary>
+    /// <remarks>
+    /// This can include empty archetypes.
+    /// </remarks>
     public ReadOnlySpan<Archetype> Archetypes => archetypes.AsSpan();
 
     /// <inheritdoc cref="Archetypes"/>
@@ -61,7 +78,7 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
     {
         using (IdLock.EnterScope())
         {
-            WorldId = NextWorldId++;
+            Id = NextWorldId++;
         }
 
         allEntitiesQuery = new QueryFilter().Build(this);
@@ -129,35 +146,48 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
     /// Copies all entities and their components to the destination world.
     /// Data in the target world will be kept.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public IEntityLookup AddTo(EcsWorld dstWorld, IArchetypeView view)
     {
+        OnSyncPoint();
+
         using var _ = AcquireCommandBuffer(out var commandBuffer);
-        using var __ = ListPool<Chunk>.Acquire(out var newChunks);
+        using var __ = ListPool<Archetype>.Acquire(out var dstArchetypes);
 
         var lookup = new EntityLookup();
-        foreach (var srcArchetype in view.Archetypes)
+        var srcArchetypes = view.Archetypes;
+
+        foreach (var srcArchetype in srcArchetypes)
         {
-            if (srcArchetype.EntityCount == 0)
+            if (srcArchetype.Entities.Length == 0)
             {
                 continue;
             }
 
-            var dstArchetype = dstWorld.GetOrCreateArchetype(srcArchetype.Components.AsComponentIdSet(), srcArchetype.Hash);
-            foreach (var srcChunk in srcArchetype.Chunks)
-            {
-                var newChunk = dstArchetype.CreateChunkFrom(srcChunk, commandBuffer, lookup);
-                newChunks.Add(newChunk);
-            }
+            var dstArchetype = dstWorld.GetOrCreateArchetype(srcArchetype.Components.AsComponentIdSet(), srcArchetype.Info.Hash);
+            dstArchetype.AddFrom(srcArchetype, lookup);
+            dstArchetypes.Add(dstArchetype);
         }
 
-        foreach (var dstChunk in newChunks)
+        for (var archetypeI = 0; archetypeI < srcArchetypes.Length; archetypeI++)
         {
-            var componentIdByColumnIndex = dstChunk.Lookup.ComponentIdByColumnIndex;
-            foreach (var componentId in componentIdByColumnIndex)
+            var srcArchetype = srcArchetypes[archetypeI];
+            var dstArchetype = dstArchetypes[archetypeI];
+
+            // Raise component copied/added events
+            var dstStart = dstArchetype.Entities.Length - srcArchetype.Entities.Length;
+            var dstComponentIdByColumnIndex = dstArchetype.Info.ComponentIdByColumnIndex;
+            foreach (var componentId in dstComponentIdByColumnIndex)
             {
-                var dispatcher = dstChunk.Lookup.ComponentDispatcherByComponentId[componentId.Value];
-                dispatcher.OnComponentCopied(commandBuffer, dstChunk, lookup);
-                dispatcher.OnComponentAdded(commandBuffer, dstChunk);
+                var dispatcher = dstArchetype.Info.ComponentDispatcherByComponentId[componentId.Value];
+                dispatcher.OnComponentCopied(commandBuffer, dstArchetype, dstStart, srcArchetype.Entities.Length, lookup);
+                dispatcher.OnComponentAdded(commandBuffer, dstArchetype, dstStart, srcArchetype.Entities.Length);
+            }
+
+            // Raise entity created events
+            for (var entityI = 0; entityI < srcArchetype.Entities.Length; entityI++)
+            {
+                dstWorld.EventBus.Raise(new EntityCreatedEvent(commandBuffer, dstArchetype.Entities[dstStart + entityI]));
             }
         }
 
@@ -171,6 +201,8 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
     /// </summary>
     public void Clear()
     {
+        OnSyncPoint();
+
         using var _ = AcquireCommandBuffer(out var commandBuffer);
         commandBuffer.Destroy(allEntitiesQuery);
         commandBuffer.Execute();
@@ -205,6 +237,26 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
         GuardUtility.IsTrue(allEntitiesQuery.Count() == 0, "Expected entity count to be 0 after world disposal");
     }
 
+    internal void Recycle(List<Archetype> value)
+    {
+        using var _ = recycleLock.EnterScope();
+        archetypeListsToRecycle.Add(value);
+    }
+
+    /// <summary>
+    /// Call when a sync point is reached to clean up internal data.
+    /// </summary>
+    internal void OnSyncPoint()
+    {
+        using var _ = recycleLock.EnterScope();
+
+        foreach (var value in archetypeListsToRecycle)
+        {
+            ListPool<Archetype>.Release(value);
+        }
+        archetypeListsToRecycle.Clear();
+    }
+
     /// <summary>
     /// Find an archetype with the given set of components, using a precomputed archetype hash.
     /// </summary>
@@ -227,13 +279,16 @@ public sealed class EcsWorld : IArchetypeView, ITrackedDisposable
         }
 
         // Didn't find one, create the new archetype
-        var a = new Archetype(this, components.ToImmutableOrderedListSet());
+        var newArchetype = new Archetype(archetypes.Count, this, components.ToImmutableOrderedListSet());
 
         // Add it to the relevant lists
-        archetypes.Add(a);
-        candidates.Add(a);
+        archetypes.Add(newArchetype);
+        candidates.Add(newArchetype);
 
-        return a;
+        // Increment version
+        Interlocked.Increment(ref Version);
+
+        return newArchetype;
     }
 
     /// <summary>

@@ -287,10 +287,10 @@ public partial class EcsCommandBuffer
                 var srcEntity = prefabs[setterId.PrefabIndex];
                 ref var srcLocation = ref srcEntity.World.Entities.GetLocation(srcEntity.EntityId);
 
-                var srcComponents = srcLocation.Chunk.GetComponentArray(setterId.ComponentId);
-                var dstComponents = dstLocation.Chunk.GetComponentArray(setterId.ComponentId);
+                var srcComponents = srcLocation.Archetype.GetComponentArray(setterId.ComponentId);
+                var dstComponents = dstLocation.Archetype.GetComponentArray(setterId.ComponentId);
 
-                Array.Copy(srcComponents, srcLocation.IndexInChunk, dstComponents, dstLocation.IndexInChunk, 1);
+                Array.Copy(srcComponents, srcLocation.IndexInArchetype, dstComponents, dstLocation.IndexInArchetype, 1);
             }
             else
             {
@@ -343,7 +343,7 @@ public partial class EcsCommandBuffer
 
             public void Write(int index, EntityLocation location)
             {
-                location.Chunk.Get<T>(location.IndexInChunk) = values[index];
+                location.Archetype.Get<T>(location.IndexInArchetype) = values[index];
             }
         }
     }

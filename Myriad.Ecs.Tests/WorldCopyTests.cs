@@ -35,8 +35,8 @@ public class WorldCopyTests
 
         // Non-empty archetype count should be equal
         Assert.Equal(
-            srcWorld.ArchetypesList.Count(a => a.EntityCount != 0),
-            dstWorld.ArchetypesList.Count(a => a.EntityCount != 0));
+            srcWorld.ArchetypesList.Count(a => a.Entities.Length != 0),
+            dstWorld.ArchetypesList.Count(a => a.Entities.Length != 0));
 
         // Entity count should be equal
         Assert.Equal(srcWorld.Count(), dstWorld.Count());
@@ -69,8 +69,8 @@ public class WorldCopyTests
 
         // Non-empty archetype count should be equal
         Assert.Equal(
-            srcWorld.ArchetypesList.Count(a => a.EntityCount != 0),
-            dstWorld.ArchetypesList.Count(a => a.EntityCount != 0));
+            srcWorld.ArchetypesList.Count(a => a.Entities.Length != 0),
+            dstWorld.ArchetypesList.Count(a => a.Entities.Length != 0));
 
         // Entity count should be equal
         Assert.Equal(srcWorld.Count(), dstWorld.Count());

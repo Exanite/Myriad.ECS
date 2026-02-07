@@ -130,7 +130,7 @@ public class EcsCommandBufferTests
             }
 
             // Check archetypes
-            Assert.Equal(alive.Count, world.ArchetypesList.Select(a => a.EntityCount).Sum());
+            Assert.Equal(alive.Count, world.ArchetypesList.Select(a => a.Entities.Length).Sum());
         }
     }
 
@@ -373,7 +373,7 @@ public class EcsCommandBufferTests
         // Get all other archetypes
         var others = (from archetype in world.ArchetypesList
             where !deleting.Contains(archetype)
-            select (archetype, archetype.EntityCount)).ToArray();
+            select (archetype, archetype.Entities.Length)).ToArray();
 
         // Query to destroy
         var q = new QueryFilter().Include<Ecs0>().Include<Ecs1>().Exclude<EcsInt32>().Build(world);
@@ -389,12 +389,12 @@ public class EcsCommandBufferTests
         // Check the archetypes
         foreach (var archetype in deleting)
         {
-            Assert.Equal(0, archetype.EntityCount);
+            Assert.Equal(0, archetype.Entities.Length);
         }
 
         foreach (var (archetype, count) in others)
         {
-            Assert.Equal(count, archetype.EntityCount);
+            Assert.Equal(count, archetype.Entities.Length);
         }
 
         // Check it's dead

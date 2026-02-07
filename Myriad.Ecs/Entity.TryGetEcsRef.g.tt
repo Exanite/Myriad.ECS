@@ -42,7 +42,7 @@ for (var paramCount = 1; paramCount <= 16; paramCount++)
             return false;
         }
 
-        var components = location.Value.Chunk.Archetype.Components;
+        var components = location.Value.Archetype.Components;
 <#
     for (var t = 0; t < paramCount; t++)
     {

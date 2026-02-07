@@ -58,7 +58,7 @@ public partial class EcsCommandBuffer
 
     private void DestroyArchetypeEntities(EcsCommandBuffer recursiveCommandBuffer, Archetype archetype)
     {
-        if (archetype.EntityCount == 0)
+        if (archetype.Entities.Length == 0)
         {
             return;
         }
@@ -66,20 +66,17 @@ public partial class EcsCommandBuffer
         // Mark entities as dead and send events
         foreach (var componentId in archetype.Components)
         {
-            var dispatcher = archetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
-            dispatcher.OnComponentRemoved(recursiveCommandBuffer, archetype);
+            var dispatcher = archetype.Info.ComponentDispatcherByComponentId[componentId.Value];
+            dispatcher.OnComponentRemoved(recursiveCommandBuffer, archetype, 0, archetype.Entities.Length);
         }
 
-        foreach (var chunk in archetype.Chunks)
+        foreach (var entity in archetype.Entities)
         {
-            foreach (var entity in chunk.Entities)
-            {
-                // Raise entity destroyed event
-                World.EventBus.Raise(new EntityDestroyedEvent(recursiveCommandBuffer, entity));
+            // Raise entity destroyed event
+            World.EventBus.Raise(new EntityDestroyedEvent(recursiveCommandBuffer, entity));
 
-                // Release ID
-                World.Entities.ReleaseId(entity.EntityId);
-            }
+            // Release ID
+            World.Entities.ReleaseId(entity.EntityId);
         }
 
         // Clear the archetype
@@ -97,10 +94,10 @@ public partial class EcsCommandBuffer
 
         // Raise component removed events
         var entity = entityId.ToEntity(World);
-        var archetype = location.Chunk.Archetype;
+        var archetype = location.Archetype;
         foreach (var componentId in archetype.Components)
         {
-            var dispatcher = archetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+            var dispatcher = archetype.Info.ComponentDispatcherByComponentId[componentId.Value];
             dispatcher.OnComponentRemoved(recursiveCommandBuffer, entity);
         }
 
@@ -108,7 +105,7 @@ public partial class EcsCommandBuffer
         World.EventBus.Raise(new EntityDestroyedEvent(recursiveCommandBuffer, entity));
 
         // Notify archetype this entity is dead
-        location.Chunk.Archetype.RemoveEntity(location);
+        location.Archetype.RemoveEntity(location);
 
         // Release ID
         World.Entities.ReleaseId(entityId);
@@ -132,9 +129,9 @@ public partial class EcsCommandBuffer
             if (!entityState.NeedsCreation)
             {
                 // Add existing components to set
-                var archetype = location.Chunk.Archetype;
+                var archetype = location.Archetype;
 
-                archetypeHash = archetype.Hash;
+                archetypeHash = archetype.Info.Hash;
                 componentIdSet.UnionWith(archetype.Components);
             }
 
@@ -185,7 +182,7 @@ public partial class EcsCommandBuffer
                     foreach (var (componentId, setterId) in entityState.Sets)
                     {
                         // Did not already have the component, so we raise copied if needed, then added
-                        var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+                        var dispatcher = dstArchetype.Info.ComponentDispatcherByComponentId[componentId.Value];
                         if (setterId.IsPrefab)
                         {
                             state.Lookup.SetContext(entityId, setterId.PrefabGroupKey);
@@ -205,7 +202,7 @@ public partial class EcsCommandBuffer
             // Case 2: Entity moved
             if (setChanged)
             {
-                var srcArchetype = location.Chunk.Archetype;
+                var srcArchetype = location.Archetype;
                 var dstArchetype = World.GetOrCreateArchetype(componentIdSet.AsComponentIdSet(), archetypeHash);
 
                 // Raise component removed events
@@ -215,7 +212,7 @@ public partial class EcsCommandBuffer
                     {
                         if (srcArchetype.Components.Contains(componentId))
                         {
-                            var dispatcher = srcArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+                            var dispatcher = srcArchetype.Info.ComponentDispatcherByComponentId[componentId.Value];
                             dispatcher.OnComponentRemoved(recursiveCommandBuffer, entity);
                         }
                     }
@@ -232,7 +229,7 @@ public partial class EcsCommandBuffer
                 {
                     foreach (var (componentId, setterId) in entityState.Sets)
                     {
-                        var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+                        var dispatcher = dstArchetype.Info.ComponentDispatcherByComponentId[componentId.Value];
                         if (srcArchetype.Components.Contains(componentId))
                         {
                             // Already had the component, so we raise copied if needed, then modified
@@ -269,11 +266,11 @@ public partial class EcsCommandBuffer
                 // Raise component copied/modified events
                 if (entityState.Sets != null)
                 {
-                    var dstArchetype = location.Chunk.Archetype;
+                    var dstArchetype = location.Archetype;
                     foreach (var (componentId, setterId) in entityState.Sets)
                     {
                         // Already had the component, so we raise copied if needed, then modified
-                        var dispatcher = dstArchetype.Lookup.ComponentDispatcherByComponentId[componentId.Value];
+                        var dispatcher = dstArchetype.Info.ComponentDispatcherByComponentId[componentId.Value];
                         if (setterId.IsPrefab)
                         {
                             state.Lookup.SetContext(entityId, setterId.PrefabGroupKey);

@@ -5,31 +5,52 @@ using Exanite.Myriad.Ecs.Components;
 namespace Exanite.Myriad.Ecs.Worlds;
 
 /// <summary>
-/// Stores component type mapping information for an archetype and its chunks.
+/// Stores information about the components stored in an archetype.
 /// </summary>
-internal struct ArchetypeComponentLookup
+internal struct ArchetypeInfo
 {
+    /// <summary>
+    /// The components of entities in this archetype.
+    /// </summary>
+    public readonly ImmutableOrderedListSet<ComponentId> Components;
+
+    /// <summary>
+    /// A bloom filter of all the components in this archetype.
+    /// </summary>
+    public readonly ComponentBloomFilter BloomFilter;
+
+    /// <summary>
+    /// The hash of all components IDs in this archetype.
+    /// </summary>
+    public readonly ArchetypeHash Hash;
+
     /// <summary>
     /// Map from column index to the component ID.
     /// </summary>
-    internal readonly ComponentId[] ComponentIdByColumnIndex;
+    public readonly ComponentId[] ComponentIdByColumnIndex;
 
     /// <summary>
     /// Sparse map from component ID to column index.
     /// </summary>
-    internal readonly int[] ColumnIndexByComponentId;
+    public readonly int[] ColumnIndexByComponentId;
 
     /// <summary>
     /// Sparse map from component ID to component dispatcher.
     /// </summary>
-    internal readonly ComponentDispatcher[] ComponentDispatcherByComponentId;
+    public readonly ComponentDispatcher[] ComponentDispatcherByComponentId;
 
-    public ArchetypeComponentLookup(ImmutableOrderedListSet<ComponentId> components)
+    public ArchetypeInfo(ImmutableOrderedListSet<ComponentId> components)
     {
-        // Calculate max component ID
+        Components = components;
+
+        // Create bloom filter
+        BloomFilter = components.ToBloomFilter();
+
+        // Calculate max component ID and archetype hash
         var maxComponentId = int.MinValue;
         foreach (var component in components)
         {
+            Hash = Hash.Toggle(component);
             if (component.Value > maxComponentId)
             {
                 maxComponentId = component.Value;
@@ -46,9 +67,9 @@ internal struct ArchetypeComponentLookup
         // Fill previously mentioned maps
         for (var i = 0; i < components.Count; i++)
         {
-            var component = components[i];
-            ComponentIdByColumnIndex[i] = component;
-            ColumnIndexByComponentId[component.Value] = i;
+            var componentId = components[i];
+            ComponentIdByColumnIndex[i] = componentId;
+            ColumnIndexByComponentId[componentId.Value] = i;
         }
 
         // Create a sparse map from component ID to component dispatcher
